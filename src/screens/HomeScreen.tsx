@@ -32,7 +32,7 @@ export default function HomeScreen() {
   const [url, setUrl] = useState('');
   const [platform, setPlatform] = useState('auto-detect');
   const [downloadType, setDownloadType] = useState('video');
-  const [quality, setQuality] = useState('high');
+  const [quality, setQuality] = useState('1080p');
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
@@ -501,16 +501,16 @@ export default function HomeScreen() {
                 style={[
                   styles.qualityOption,
                   { flex: 1, borderTopLeftRadius: 50, borderBottomLeftRadius: 50 },
-                  quality === 'high' && styles.selectedQuality,
+                  quality === '1080p' && styles.selectedQuality,
                 ]}
-                onPress={() => setQuality('high')}
+                onPress={() => setQuality('1080p')}
               >
-                <MaterialIcons name="high-quality" size={16} color={quality === 'high' ? 'white' : '#333'} />
+                <MaterialIcons name="high-quality" size={16} color={quality === '1080p' ? 'white' : '#333'} />
                 <Text style={[
                   styles.qualityText,
-                  quality === 'high' && styles.selectedQualityText,
+                  quality === '1080p' && styles.selectedQualityText,
                 ]}>
-                  HD High
+                  1080p HD
                 </Text>
               </TouchableOpacity>
               
@@ -518,15 +518,31 @@ export default function HomeScreen() {
                 style={[
                   styles.qualityOption,
                   { flex: 1 },
-                  quality === 'medium' && styles.selectedQuality,
+                  quality === '720p' && styles.selectedQuality,
                 ]}
-                onPress={() => setQuality('medium')}
+                onPress={() => setQuality('720p')}
               >
                 <Text style={[
                   styles.qualityText,
-                  quality === 'medium' && styles.selectedQualityText,
+                  quality === '720p' && styles.selectedQualityText,
                 ]}>
-                  Medium
+                  720p HD
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.qualityOption,
+                  { flex: 1 },
+                  quality === '480p' && styles.selectedQuality,
+                ]}
+                onPress={() => setQuality('480p')}
+              >
+                <Text style={[
+                  styles.qualityText,
+                  quality === '480p' && styles.selectedQualityText,
+                ]}>
+                  480p
                 </Text>
               </TouchableOpacity>
               
@@ -534,15 +550,15 @@ export default function HomeScreen() {
                 style={[
                   styles.qualityOption,
                   { flex: 1, borderTopRightRadius: 50, borderBottomRightRadius: 50 },
-                  quality === 'low' && styles.selectedQuality,
+                  quality === '360p' && styles.selectedQuality,
                 ]}
-                onPress={() => setQuality('low')}
+                onPress={() => setQuality('360p')}
               >
                 <Text style={[
                   styles.qualityText,
-                  quality === 'low' && styles.selectedQualityText,
+                  quality === '360p' && styles.selectedQualityText,
                 ]}>
-                  Low
+                  360p
                 </Text>
               </TouchableOpacity>
             </View>
@@ -618,24 +634,30 @@ export default function HomeScreen() {
                 mode="contained"
                 onPress={handleDownload}
                 style={styles.downloadButton}
+                contentStyle={{height: 50}}
+                labelStyle={{fontSize: 16, fontWeight: 'bold', color: 'white'}}
                 disabled={!url.trim() || loading}
                 loading={loading && !showPreview}
                 icon={({size, color}) => (
-                  <MaterialIcons name="file-download" size={size} color={color} />
+                  <MaterialIcons name="file-download" size={24} color={color} />
                 )}
               >
-                Download
+                DOWNLOAD
               </Button>
 
               <Button
                 mode="outlined"
                 onPress={handleAnalyze}
                 style={styles.analyzeButton}
+                contentStyle={{height: 50}}
+                labelStyle={{fontSize: 16, fontWeight: 'bold'}}
                 disabled={!url.trim() || loading}
                 loading={loading && showPreview}
-                icon="information-outline"
+                icon={({size, color}) => (
+                  <MaterialIcons name="analytics" size={22} color={color} />
+                )}
               >
-                Analyze
+                ANALYZE
               </Button>
             </View>
           </Card.Content>
@@ -730,11 +752,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: 'white',
     overflow: 'hidden',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
+    elevation: 8,
+    shadowColor: '#7000EA',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(127, 0, 255, 0.1)',
   },
   // URL Input 
   urlInputContainer: {
@@ -745,26 +769,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f7f7f7',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderWidth: 1.5,
+    borderColor: '#d0d0d0',
     borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   urlInput: {
     flex: 1,
-    height: 54,
+    height: 56,
     paddingHorizontal: 16,
     fontSize: 16,
+    color: '#333',
   },
   iconButton: {
     margin: 0,
   },
   // Section labels
   sectionLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
-    marginBottom: 12,
-    marginTop: 16,
+    marginBottom: 14,
+    marginTop: 18,
     color: '#333',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   // Platform selector
   platformScroller: {
@@ -774,14 +806,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f0f0f0',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
     borderRadius: 50,
     marginRight: 10,
     marginBottom: 4,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   selectedPlatform: {
     backgroundColor: '#7F00FF',
+    elevation: 4,
+    shadowColor: '#7F00FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   platformText: {
     marginLeft: 8,
@@ -794,22 +836,32 @@ const styles = StyleSheet.create({
   // Download type selector
   downloadTypeSelector: {
     flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderWidth: 1.5,
+    borderColor: '#d0d0d0',
     borderRadius: 50,
     overflow: 'hidden',
     marginBottom: 16,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   downloadTypeOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 10,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#f4f4f4',
   },
   selectedDownloadType: {
     backgroundColor: '#7F00FF',
+    elevation: 4,
+    shadowColor: '#7F00FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   downloadTypeText: {
     marginLeft: 6,
@@ -823,22 +875,32 @@ const styles = StyleSheet.create({
   // Quality selector
   qualitySelector: {
     flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderWidth: 1.5,
+    borderColor: '#d0d0d0',
     borderRadius: 50,
     overflow: 'hidden',
-    marginBottom: 16,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   qualityOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 10,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#f4f4f4',
   },
   selectedQuality: {
     backgroundColor: '#7F00FF',
+    elevation: 4,
+    shadowColor: '#7F00FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   qualityText: {
     fontSize: 14,
@@ -847,27 +909,34 @@ const styles = StyleSheet.create({
   },
   selectedQualityText: {
     color: 'white',
+    fontWeight: 'bold',
   },
   // Progress bar
   progressContainer: {
-    marginVertical: 16,
+    marginVertical: 20,
     alignItems: 'center',
+    backgroundColor: '#f8f8f8',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   progressText: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#7F00FF',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   progressBar: {
     width: '100%',
-    height: 8,
-    borderRadius: 4,
+    height: 10,
+    borderRadius: 5,
   },
   progressStatus: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 8,
+    fontSize: 16,
+    color: '#555',
+    marginTop: 10,
+    fontWeight: '500',
   },
   // Preview section
   previewContainer: {
@@ -934,33 +1003,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFEBEE',
-    padding: 10,
+    padding: 15,
     borderRadius: 8,
-    marginVertical: 12,
+    marginVertical: 15,
+    borderWidth: 1,
+    borderColor: '#ffcdd2',
+    elevation: 2,
+    shadowColor: '#e57373',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   errorText: {
-    color: '#e74c3c',
-    fontSize: 13,
+    color: '#d32f2f',
+    fontSize: 14,
     marginLeft: 8,
     flex: 1,
+    lineHeight: 20,
   },
   // Buttons
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 20,
+    marginBottom: 12,
   },
   downloadButton: {
     flex: 1,
-    marginRight: 8,
+    marginRight: 12,
     backgroundColor: '#7F00FF',
     borderRadius: 8,
-    paddingVertical: 8,
+    elevation: 4,
+    shadowColor: '#7F00FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   analyzeButton: {
     flex: 1,
     borderColor: '#7F00FF',
+    borderWidth: 2,
     borderRadius: 8,
   },
   // History section
