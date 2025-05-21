@@ -1,143 +1,207 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { TextInput, Button, HelperText, Menu, useTheme } from 'react-native-paper';
-import { Feather } from '@expo/vector-icons';
+import { View, StyleSheet, TextInput, Text, TouchableOpacity } from 'react-native';
+import { Button, IconButton } from 'react-native-paper';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { detectPlatformFromUrl } from '../services/api';
 
 interface DownloadFormProps {
   onSubmit: (url: string, platform: string) => void;
-  error: string | null;
+  error?: string | null;
   initialUrl?: string;
   initialPlatform?: string;
 }
 
-const DownloadForm: React.FC<DownloadFormProps> = ({ 
+const DownloadForm: React.FC<DownloadFormProps> = ({
   onSubmit,
   error,
   initialUrl = '',
-  initialPlatform = 'auto'
+  initialPlatform = '',
 }) => {
-  const theme = useTheme();
   const [url, setUrl] = useState(initialUrl);
   const [platform, setPlatform] = useState(initialPlatform);
-  const [isPlatformMenuVisible, setIsPlatformMenuVisible] = useState(false);
-  const [urlError, setUrlError] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Update platform when URL changes if in auto mode
   useEffect(() => {
-    if (platform === 'auto' && url) {
+    if (initialUrl) {
+      setUrl(initialUrl);
+    }
+    if (initialPlatform) {
+      setPlatform(initialPlatform);
+    }
+  }, [initialUrl, initialPlatform]);
+
+  useEffect(() => {
+    if (url) {
       const detectedPlatform = detectPlatformFromUrl(url);
       if (detectedPlatform !== 'unknown') {
         setPlatform(detectedPlatform);
       }
     }
-  }, [url, platform]);
+  }, [url]);
 
-  const handleUrlChange = (text: string) => {
-    setUrl(text);
-    setUrlError(null);
+  const handlePasteFromClipboard = async () => {
+    try {
+      // In a real implementation, we would use clipboard-expo here
+      // Since we're in a web environment, we'll simulate this behavior
+      const clipboardText = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+      setUrl(clipboardText);
+      const detectedPlatform = detectPlatformFromUrl(clipboardText);
+      setPlatform(detectedPlatform);
+    } catch (error) {
+      console.error('Failed to paste from clipboard', error);
+    }
+  };
+
+  const handleAnalyze = () => {
+    if (!url.trim()) return;
+    
+    setIsAnalyzing(true);
+    
+    // Simulate analysis of URL
+    setTimeout(() => {
+      setIsAnalyzing(false);
+      onSubmit(url, platform);
+    }, 1000);
   };
 
   const handleSubmit = () => {
-    // Validate URL
-    if (!url.trim()) {
-      setUrlError('Please enter a URL');
-      return;
-    }
-
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      setUrlError('Please enter a valid URL starting with http:// or https://');
-      return;
-    }
-
+    if (!url.trim()) return;
     onSubmit(url, platform);
   };
 
-  const platformOptions = [
-    { label: 'Auto Detect', value: 'auto' },
-    { label: 'YouTube', value: 'youtube' },
-    { label: 'Instagram', value: 'instagram' },
-    { label: 'Twitter/X', value: 'twitter' },
-  ];
+  const handleClearUrl = () => {
+    setUrl('');
+    setPlatform('');
+  };
+
+  const handleSelectPlatform = (newPlatform: string) => {
+    setPlatform(newPlatform);
+  };
+
+  const getPlatformIcon = (platformName: string, isSelected: boolean) => {
+    const color = isSelected ? 'white' : '#333';
+    
+    switch (platformName) {
+      case 'youtube':
+        return <FontAwesome5 name="youtube" size={18} color={isSelected ? 'white' : 'red'} />;
+      case 'instagram':
+        return <FontAwesome5 name="instagram" size={18} color={isSelected ? 'white' : '#C13584'} />;
+      case 'twitter':
+        return <FontAwesome5 name="twitter" size={18} color={isSelected ? 'white' : '#1DA1F2'} />;
+      case 'tiktok':
+        return <FontAwesome5 name="tiktok" size={18} color={isSelected ? 'white' : 'black'} />;
+      case 'facebook':
+        return <FontAwesome5 name="facebook" size={18} color={isSelected ? 'white' : '#4267B2'} />;
+      default:
+        return <Ionicons name="md-sync" size={18} color={color} />;
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <TextInput
-        mode="outlined"
-        label="URL"
-        placeholder="https://..."
-        value={url}
-        onChangeText={handleUrlChange}
-        error={!!urlError || !!error}
-        style={styles.input}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="url"
-        right={
-          url ? (
-            <TextInput.Icon 
-              icon="close-circle" 
-              onPress={() => setUrl('')} 
-            />
-          ) : null
-        }
-      />
-      
-      {urlError && (
-        <HelperText type="error" visible={!!urlError}>
-          {urlError}
-        </HelperText>
-      )}
-      
-      {error && (
-        <HelperText type="error" visible={!!error}>
-          {error}
-        </HelperText>
-      )}
-      
-      <View style={styles.platformContainer}>
-        <View style={{ flex: 1 }}>
+      <View style={styles.urlInputContainer}>
+        <View style={styles.urlInputWrapper}>
           <TextInput
-            mode="outlined"
-            label="Platform"
-            value={platformOptions.find(p => p.value === platform)?.label || 'Select Platform'}
-            editable={false}
-            right={
-              <TextInput.Icon
-                icon="chevron-down"
-                onPress={() => setIsPlatformMenuVisible(true)}
-              />
-            }
-            style={styles.platformInput}
+            style={styles.urlInput}
+            placeholder="Paste video/image URL here"
+            value={url}
+            onChangeText={setUrl}
+            placeholderTextColor="#999"
+            autoCapitalize="none"
           />
-          <Menu
-            visible={isPlatformMenuVisible}
-            onDismiss={() => setIsPlatformMenuVisible(false)}
-            anchor={{ x: 0, y: 0 }}
-            style={styles.menu}
-          >
-            {platformOptions.map((option) => (
-              <Menu.Item
-                key={option.value}
-                title={option.label}
-                onPress={() => {
-                  setPlatform(option.value);
-                  setIsPlatformMenuVisible(false);
-                }}
-                titleStyle={{ 
-                  color: platform === option.value ? theme.colors.primary : theme.colors.text 
-                }}
-                leadingIcon={platform === option.value ? 'check' : undefined}
-              />
-            ))}
-          </Menu>
+          {url ? (
+            <IconButton
+              icon="close"
+              size={20}
+              onPress={handleClearUrl}
+              style={styles.iconButton}
+            />
+          ) : (
+            <IconButton
+              icon="content-paste"
+              size={20}
+              onPress={handlePasteFromClipboard}
+              style={styles.iconButton}
+            />
+          )}
         </View>
-        
-        <Button 
-          mode="contained" 
+      </View>
+
+      {error && (
+        <Text style={styles.errorText}>{error}</Text>
+      )}
+
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionLabel}>Platform</Text>
+        <View style={styles.platformSelector}>
+          <TouchableOpacity
+            style={[
+              styles.platformOption,
+              platform === 'auto-detect' && styles.selectedPlatform,
+            ]}
+            onPress={() => handleSelectPlatform('auto-detect')}
+          >
+            {getPlatformIcon('auto-detect', platform === 'auto-detect')}
+            <Text style={[
+              styles.platformText,
+              platform === 'auto-detect' && styles.selectedPlatformText,
+            ]}>
+              Auto-detect
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.platformOption,
+              platform === 'youtube' && styles.selectedPlatform,
+            ]}
+            onPress={() => handleSelectPlatform('youtube')}
+          >
+            {getPlatformIcon('youtube', platform === 'youtube')}
+            <Text style={[
+              styles.platformText,
+              platform === 'youtube' && styles.selectedPlatformText,
+            ]}>
+              YouTube
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.platformOption,
+              platform === 'instagram' && styles.selectedPlatform,
+            ]}
+            onPress={() => handleSelectPlatform('instagram')}
+          >
+            {getPlatformIcon('instagram', platform === 'instagram')}
+            <Text style={[
+              styles.platformText,
+              platform === 'instagram' && styles.selectedPlatformText,
+            ]}>
+              Instagram
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <Button
+          mode="contained"
           onPress={handleSubmit}
-          style={styles.submitButton}
+          style={styles.downloadButton}
           disabled={!url.trim()}
+          icon="download"
+        >
+          Download
+        </Button>
+
+        <Button
+          mode="outlined"
+          onPress={handleAnalyze}
+          style={styles.analyzeButton}
+          disabled={!url.trim() || isAnalyzing}
+          loading={isAnalyzing}
+          icon="magnify"
         >
           Analyze
         </Button>
@@ -149,25 +213,81 @@ const DownloadForm: React.FC<DownloadFormProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 20,
   },
-  input: {
-    marginBottom: 8,
+  urlInputContainer: {
+    width: '100%',
+    marginBottom: 15,
   },
-  platformContainer: {
+  urlInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
   },
-  platformInput: {
+  urlInput: {
+    flex: 1,
+    height: 50,
+    paddingHorizontal: 16,
+    fontSize: 16,
+  },
+  iconButton: {
+    margin: 0,
+  },
+  errorText: {
+    color: 'red',
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  sectionContainer: {
+    marginBottom: 15,
+  },
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+  },
+  platformSelector: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  platformOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  selectedPlatform: {
+    backgroundColor: '#3498db',
+  },
+  platformText: {
+    marginLeft: 6,
+    color: '#333',
+  },
+  selectedPlatformText: {
+    color: 'white',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  downloadButton: {
     flex: 1,
     marginRight: 8,
   },
-  submitButton: {
-    height: 50,
-    justifyContent: 'center',
-  },
-  menu: {
-    width: 200,
+  analyzeButton: {
+    flex: 1,
   },
 });
 
