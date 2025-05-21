@@ -1,49 +1,31 @@
 import * as MediaLibrary from 'expo-media-library';
 import { Alert, Platform } from 'react-native';
-import { requestNotificationPermissions } from './notifications';
-import * as FileSystem from 'expo-file-system';
 
 /**
  * Check and request all necessary permissions
  * @returns {Promise<boolean>} Whether all permissions were granted
  */
 export const checkAndRequestPermissions = async (): Promise<boolean> => {
-  try {
-    const { status: mediaStatus } = await MediaLibrary.requestPermissionsAsync();
-    if (mediaStatus !== 'granted') {
-      throw new Error('Media library permission not granted');
-    }
-    const notificationPermission = await requestNotificationPermissions();
-
-    // On web, media permissions might not be supported
-    if (Platform.OS === 'web') {
-      return notificationPermission;
-    }
-
-    // Return true only if all permissions are granted
-    return mediaStatus === 'granted' && notificationPermission;
-  } catch (error) {
-    console.error('Error requesting permissions:', error);
-    return false;
+  // Only check media library permissions on mobile platforms
+  if (Platform.OS === 'web') {
+    console.log('Skipping permission check on web platform');
+    return true;
   }
+
+  return await checkMediaLibraryPermissions();
 };
 
 /**
  * Check if we have media library permissions
  * @returns {Promise<boolean>} Whether media library permissions are granted
  */
-export const checkPermissions = async (): Promise<boolean> => {
+export const checkMediaLibraryPermissions = async (): Promise<boolean> => {
   if (Platform.OS === 'web') {
-    return true; // Web doesn't need media permissions in the same way
+    return true;
   }
-
-  try {
-    const { status } = await MediaLibrary.getPermissionsAsync();
-    return status === 'granted';
-  } catch (error) {
-    console.error('Error checking media library permissions:', error);
-    return false;
-  }
+  
+  const { status } = await MediaLibrary.getPermissionsAsync();
+  return status === 'granted';
 };
 
 /**
@@ -52,31 +34,16 @@ export const checkPermissions = async (): Promise<boolean> => {
  */
 export const requestMediaLibraryPermissions = async (): Promise<boolean> => {
   if (Platform.OS === 'web') {
-    return true; // Web doesn't need media permissions in the same way
-  }
-
-  try {
-    const { status: existingStatus } = await MediaLibrary.getPermissionsAsync();
-
-    // Return early if we already have permission
-    if (existingStatus === 'granted') {
-      return true;
-    }
-
-    // Request permission
-    const { status } = await MediaLibrary.requestPermissionsAsync();
-
-    // If permission was denied, show explanation
-    if (status !== 'granted') {
-      showPermissionExplanation();
-      return false;
-    }
-
     return true;
-  } catch (error) {
-    console.error('Error requesting media library permissions:', error);
-    return false;
   }
+  
+  const { status, canAskAgain } = await MediaLibrary.requestPermissionsAsync();
+  
+  if (status !== 'granted' && canAskAgain) {
+    showPermissionExplanation();
+  }
+  
+  return status === 'granted';
 };
 
 /**
@@ -85,21 +52,10 @@ export const requestMediaLibraryPermissions = async (): Promise<boolean> => {
 export const showPermissionExplanation = (): void => {
   Alert.alert(
     'Permission Required',
-    'We need permission to save media to your device. Please enable this permission in your device settings.',
-    [{ text: 'OK' }]
+    'This app needs access to your media library to save downloaded media files.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Open Settings', onPress: () => console.log('Open settings') },
+    ]
   );
-};
-
-export const ensureDownloadDirectory = async () => {
-  try {
-    const dir = `${FileSystem.documentDirectory}downloads/`;
-    const dirInfo = await FileSystem.getInfoAsync(dir);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-    }
-    return dir;
-  } catch (error) {
-    console.error('Error creating download directory:', error);
-    throw error;
-  }
 };

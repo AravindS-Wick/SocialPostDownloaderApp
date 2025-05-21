@@ -1,31 +1,111 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+  StyleSheet, 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  ScrollView, 
+  Image, 
+  Platform,
+  Dimensions 
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { Button, IconButton, useTheme } from 'react-native-paper';
+import { Ionicons, FontAwesome5, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Button, IconButton, useTheme, Card, Avatar, ProgressBar, Chip, Divider } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
+import { checkAndRequestPermissions } from '../services/permissions';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { user } = useSelector((state: RootState) => state.auth);
+  const theme = useTheme();
+  const dispatch = useDispatch();
+  const windowWidth = Dimensions.get('window').width;
   
   const [url, setUrl] = useState('');
   const [platform, setPlatform] = useState('auto-detect');
   const [downloadType, setDownloadType] = useState('video');
   const [quality, setQuality] = useState('high');
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [downloadHistory, setDownloadHistory] = useState<any[]>([]);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Check permissions on component mount
+  useEffect(() => {
+    const checkPermissions = async () => {
+      // Skip permissions check on web
+      if (Platform.OS === 'web') {
+        // We'll handle web errors separately
+        return;
+      }
+      
+      const hasPermissions = await checkAndRequestPermissions();
+      if (!hasPermissions) {
+        setShowError(true);
+        setErrorMessage('Media library permissions are required to save downloads.');
+      }
+    };
+    
+    checkPermissions();
+    
+    // Mock history data to show the UI
+    setDownloadHistory([
+      {
+        id: '1',
+        title: 'Summer Travel Highlights',
+        url: 'https://youtube.com/watch?v=dQw4w9WgXcQ',
+        thumbnail: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+        platform: 'youtube',
+        type: 'video',
+        quality: 'high',
+        size: '24.5 MB',
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: '2',
+        title: 'Beautiful Sunset Photography',
+        url: 'https://instagram.com/p/abc123',
+        thumbnail: 'https://source.unsplash.com/random/300x200/?sunset',
+        platform: 'instagram',
+        type: 'image',
+        quality: 'high',
+        size: '3.2 MB',
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: '3',
+        title: 'Latest News Update',
+        url: 'https://twitter.com/user/status/123456789',
+        thumbnail: 'https://source.unsplash.com/random/300x200/?news',
+        platform: 'twitter',
+        type: 'video',
+        quality: 'medium',
+        size: '18.7 MB',
+        createdAt: new Date().toISOString(),
+      }
+    ]);
+  }, []);
 
   const handlePasteFromClipboard = async () => {
     try {
       // In a real implementation, we would use clipboard-expo here
       // Since we're in a web environment, we'll simulate this behavior
-      const clipboardText = 'outu.be/swID4lyPVu8?feature=shared';
+      const clipboardText = 'https://youtu.be/swID4lyPVu8?feature=shared';
       setUrl(clipboardText);
+      
+      // Auto-detect platform
+      detectPlatform(clipboardText);
     } catch (error) {
       console.error('Failed to paste from clipboard', error);
     }
@@ -33,253 +113,578 @@ export default function HomeScreen() {
 
   const handleClearUrl = () => {
     setUrl('');
+    setShowPreview(false);
+    setPreviewData(null);
+  };
+
+  const detectPlatform = (inputUrl: string) => {
+    if (inputUrl.includes('youtube') || inputUrl.includes('youtu.be')) {
+      setPlatform('youtube');
+    } else if (inputUrl.includes('instagram')) {
+      setPlatform('instagram');
+    } else if (inputUrl.includes('twitter') || inputUrl.includes('x.com')) {
+      setPlatform('twitter');
+    } else if (inputUrl.includes('tiktok')) {
+      setPlatform('tiktok');
+    } else if (inputUrl.includes('facebook')) {
+      setPlatform('facebook');
+    } else {
+      setPlatform('auto-detect');
+    }
   };
 
   const handleSelectPlatform = (newPlatform: string) => {
     setPlatform(newPlatform);
   };
 
-  const handleSubmit = () => {
+  const handleDownload = () => {
     if (!url.trim()) return;
-    navigation.navigate('Download', { url, platform });
+    
+    setLoading(true);
+    setProgress(0);
+    
+    // Simulate download progress
+    const progressInterval = setInterval(() => {
+      setProgress((prevProgress) => {
+        const newProgress = prevProgress + (Math.random() * 10);
+        if (newProgress >= 100) {
+          clearInterval(progressInterval);
+          setTimeout(() => {
+            setLoading(false);
+            // Add to history
+            const newDownload = {
+              id: Date.now().toString(),
+              title: `Downloaded ${downloadType} from ${platform}`,
+              url: url,
+              thumbnail: platform === 'youtube' 
+                ? 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg'
+                : 'https://source.unsplash.com/random/300x200/?nature',
+              platform: platform,
+              type: downloadType,
+              quality: quality,
+              size: downloadType === 'video' ? '24.5 MB' : '3.2 MB',
+              createdAt: new Date().toISOString(),
+            };
+            setDownloadHistory([newDownload, ...downloadHistory]);
+            
+            // Show success feedback
+            alert(`Successfully downloaded ${downloadType} in ${quality} quality!`);
+          }, 500);
+          return 100;
+        }
+        return newProgress;
+      });
+    }, 200);
   };
 
   const handleAnalyze = () => {
     if (!url.trim()) return;
-    navigation.navigate('Download', { url, platform });
+    
+    setLoading(true);
+    setProgress(0);
+    
+    // Simulate analyzing
+    const progressInterval = setInterval(() => {
+      setProgress((prevProgress) => {
+        const newProgress = prevProgress + (Math.random() * 15);
+        if (newProgress >= 100) {
+          clearInterval(progressInterval);
+          setTimeout(() => {
+            setLoading(false);
+            setShowPreview(true);
+            setPreviewData({
+              title: 'Amazing Social Media Content',
+              author: 'Content Creator',
+              duration: '3:45',
+              availableQualities: ['1080p', '720p', '480p', '360p'],
+              thumbnail: 'https://source.unsplash.com/random/800x450/?video',
+              description: 'This is a great video with lots of interesting content.',
+              views: '1.2M',
+              likes: '45K',
+              publishDate: '2023-05-15',
+            });
+          }, 800);
+          return 100;
+        }
+        return newProgress;
+      });
+    }, 150);
+  };
+
+  const handleDeleteDownload = (id: string) => {
+    setDownloadHistory(downloadHistory.filter(item => item.id !== id));
+  };
+
+  const getPlatformIcon = (platformName: string, size: number = 24, color?: string) => {
+    switch (platformName) {
+      case 'youtube':
+        return <FontAwesome5 name="youtube" size={size} color={color || "#FF0000"} />;
+      case 'instagram':
+        return <FontAwesome5 name="instagram" size={size} color={color || "#C13584"} />;
+      case 'twitter':
+        return <FontAwesome5 name="twitter" size={size} color={color || "#1DA1F2"} />;
+      case 'tiktok':
+        return <FontAwesome5 name="tiktok" size={size} color={color || "#000000"} />;
+      case 'facebook':
+        return <FontAwesome5 name="facebook-square" size={size} color={color || "#4267B2"} />;
+      default:
+        return <MaterialIcons name="public" size={size} color={color || "#888888"} />;
+    }
+  };
+  
+  const renderDownloadItem = (item: any) => {
+    return (
+      <Card key={item.id} style={styles.historyCard}>
+        <Card.Title
+          title={item.title}
+          subtitle={`${item.platform} · ${item.type} · ${item.quality}`}
+          left={(props) => getPlatformIcon(item.platform, props.size)}
+          right={(props) => (
+            <IconButton
+              {...props}
+              icon="delete"
+              onPress={() => handleDeleteDownload(item.id)}
+              size={20}
+            />
+          )}
+        />
+        <Card.Content>
+          <View style={styles.historyCardContent}>
+            <Image 
+              source={{ uri: item.thumbnail }} 
+              style={styles.historyThumbnail} 
+              resizeMode="cover"
+            />
+            <View style={styles.historyDetails}>
+              <Text style={styles.historyDetailText}>
+                <Text style={styles.historyDetailLabel}>Size: </Text>
+                {item.size}
+              </Text>
+              <Text style={styles.historyDetailText}>
+                <Text style={styles.historyDetailLabel}>Date: </Text>
+                {new Date(item.createdAt).toLocaleDateString()}
+              </Text>
+              <View style={{ flexDirection: 'row', marginTop: 5 }}>
+                <Chip 
+                  icon={() => item.type === 'video' 
+                    ? <FontAwesome5 name="video" size={14} color="#666" /> 
+                    : <FontAwesome5 name="image" size={14} color="#666" />
+                  }
+                  style={styles.historyChip}
+                >
+                  {item.type}
+                </Chip>
+                <Chip 
+                  icon={() => <MaterialIcons name="high-quality" size={14} color="#666" />}
+                  style={styles.historyChip}
+                >
+                  {item.quality}
+                </Chip>
+              </View>
+            </View>
+          </View>
+        </Card.Content>
+      </Card>
+    );
   };
 
   return (
     <ScrollView style={styles.container}>
       {/* Header with gradient background */}
       <LinearGradient
-        colors={['#3498db', '#2980b9']}
+        colors={['#7F00FF', '#E100FF']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
         <Text style={styles.title}>Social Media Downloader</Text>
         <Text style={styles.subtitle}>
-          Download videos and photos from YouTube, Instagram, Twitter, and more
+          Download videos, photos, and music from all your favorite platforms
         </Text>
       </LinearGradient>
 
       {/* Main Download Card */}
-      <View style={styles.card}>
-        <View style={styles.platformHeader}>
-          <FontAwesome5 name="youtube" size={24} color="red" />
-          <Text style={styles.platformTitle}>YouTube Downloader</Text>
-        </View>
-        
-        <Text style={styles.platformDescription}>
-          Download videos and audio from youtube with high quality and fast speed.
-        </Text>
-        
-        {/* URL Input */}
-        <View style={styles.urlInputContainer}>
-          <View style={styles.urlInputWrapper}>
-            <TextInput
-              style={styles.urlInput}
-              placeholder="Paste video/image URL here"
-              value={url}
-              onChangeText={setUrl}
-              placeholderTextColor="#999"
-              autoCapitalize="none"
-            />
-            {url ? (
-              <IconButton
-                icon="close"
-                size={20}
-                onPress={handleClearUrl}
-                style={styles.iconButton}
-              />
-            ) : (
-              <IconButton
-                icon="content-paste"
-                size={20}
-                onPress={handlePasteFromClipboard}
-                style={styles.iconButton}
-              />
+      <View style={styles.cardContainer}>
+        <Card style={styles.card}>
+          <Card.Content>
+            {/* URL Input */}
+            <View style={styles.urlInputContainer}>
+              <View style={styles.urlInputWrapper}>
+                <TextInput
+                  style={styles.urlInput}
+                  placeholder="Paste video/image URL here"
+                  value={url}
+                  onChangeText={(text) => {
+                    setUrl(text);
+                    detectPlatform(text);
+                  }}
+                  placeholderTextColor="#999"
+                  autoCapitalize="none"
+                />
+                {url ? (
+                  <IconButton
+                    icon="close"
+                    size={20}
+                    onPress={handleClearUrl}
+                    style={styles.iconButton}
+                  />
+                ) : (
+                  <IconButton
+                    icon="content-paste"
+                    size={20}
+                    onPress={handlePasteFromClipboard}
+                    style={styles.iconButton}
+                  />
+                )}
+              </View>
+            </View>
+
+            {/* Platform Selection */}
+            <Text style={styles.sectionLabel}>Platform</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.platformScroller}>
+              <TouchableOpacity
+                style={[
+                  styles.platformOption,
+                  platform === 'auto-detect' && styles.selectedPlatform,
+                ]}
+                onPress={() => handleSelectPlatform('auto-detect')}
+              >
+                <MaterialIcons name="auto-awesome" size={18} color={platform === 'auto-detect' ? 'white' : '#333'} />
+                <Text style={[
+                  styles.platformText,
+                  platform === 'auto-detect' && styles.selectedPlatformText,
+                ]}>
+                  Auto-detect
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.platformOption,
+                  platform === 'youtube' && styles.selectedPlatform,
+                ]}
+                onPress={() => handleSelectPlatform('youtube')}
+              >
+                <FontAwesome5 name="youtube" size={18} color={platform === 'youtube' ? 'white' : '#FF0000'} />
+                <Text style={[
+                  styles.platformText,
+                  platform === 'youtube' && styles.selectedPlatformText,
+                ]}>
+                  YouTube
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.platformOption,
+                  platform === 'instagram' && styles.selectedPlatform,
+                ]}
+                onPress={() => handleSelectPlatform('instagram')}
+              >
+                <FontAwesome5 name="instagram" size={18} color={platform === 'instagram' ? 'white' : '#C13584'} />
+                <Text style={[
+                  styles.platformText,
+                  platform === 'instagram' && styles.selectedPlatformText,
+                ]}>
+                  Instagram
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.platformOption,
+                  platform === 'twitter' && styles.selectedPlatform,
+                ]}
+                onPress={() => handleSelectPlatform('twitter')}
+              >
+                <FontAwesome5 name="twitter" size={18} color={platform === 'twitter' ? 'white' : '#1DA1F2'} />
+                <Text style={[
+                  styles.platformText,
+                  platform === 'twitter' && styles.selectedPlatformText,
+                ]}>
+                  Twitter
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.platformOption,
+                  platform === 'tiktok' && styles.selectedPlatform,
+                ]}
+                onPress={() => handleSelectPlatform('tiktok')}
+              >
+                <FontAwesome5 name="tiktok" size={18} color={platform === 'tiktok' ? 'white' : '#000000'} />
+                <Text style={[
+                  styles.platformText,
+                  platform === 'tiktok' && styles.selectedPlatformText,
+                ]}>
+                  TikTok
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.platformOption,
+                  platform === 'facebook' && styles.selectedPlatform,
+                ]}
+                onPress={() => handleSelectPlatform('facebook')}
+              >
+                <FontAwesome5 name="facebook" size={18} color={platform === 'facebook' ? 'white' : '#4267B2'} />
+                <Text style={[
+                  styles.platformText,
+                  platform === 'facebook' && styles.selectedPlatformText,
+                ]}>
+                  Facebook
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            {/* Download Type Selection */}
+            <Text style={styles.sectionLabel}>Download Type</Text>
+            <View style={styles.downloadTypeSelector}>
+              <TouchableOpacity
+                style={[
+                  styles.downloadTypeOption,
+                  { flex: 1, borderTopLeftRadius: 50, borderBottomLeftRadius: 50 },
+                  downloadType === 'video' && styles.selectedDownloadType,
+                ]}
+                onPress={() => setDownloadType('video')}
+              >
+                <FontAwesome5 name="video" size={16} color={downloadType === 'video' ? 'white' : '#333'} />
+                <Text style={[
+                  styles.downloadTypeText,
+                  downloadType === 'video' && styles.selectedDownloadTypeText,
+                ]}>
+                  Video
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.downloadTypeOption,
+                  { flex: 1 },
+                  downloadType === 'audio' && styles.selectedDownloadType,
+                ]}
+                onPress={() => setDownloadType('audio')}
+              >
+                <FontAwesome5 name="music" size={16} color={downloadType === 'audio' ? 'white' : '#333'} />
+                <Text style={[
+                  styles.downloadTypeText,
+                  downloadType === 'audio' && styles.selectedDownloadTypeText,
+                ]}>
+                  Audio
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.downloadTypeOption,
+                  { flex: 1, borderTopRightRadius: 50, borderBottomRightRadius: 50 },
+                  downloadType === 'photo' && styles.selectedDownloadType,
+                ]}
+                onPress={() => setDownloadType('photo')}
+              >
+                <FontAwesome5 name="image" size={16} color={downloadType === 'photo' ? 'white' : '#333'} />
+                <Text style={[
+                  styles.downloadTypeText,
+                  downloadType === 'photo' && styles.selectedDownloadTypeText,
+                ]}>
+                  Photo
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Quality Selection */}
+            <Text style={styles.sectionLabel}>Quality</Text>
+            <View style={styles.qualitySelector}>
+              <TouchableOpacity
+                style={[
+                  styles.qualityOption,
+                  { flex: 1, borderTopLeftRadius: 50, borderBottomLeftRadius: 50 },
+                  quality === 'high' && styles.selectedQuality,
+                ]}
+                onPress={() => setQuality('high')}
+              >
+                <MaterialIcons name="high-quality" size={16} color={quality === 'high' ? 'white' : '#333'} />
+                <Text style={[
+                  styles.qualityText,
+                  quality === 'high' && styles.selectedQualityText,
+                ]}>
+                  HD High
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.qualityOption,
+                  { flex: 1 },
+                  quality === 'medium' && styles.selectedQuality,
+                ]}
+                onPress={() => setQuality('medium')}
+              >
+                <Text style={[
+                  styles.qualityText,
+                  quality === 'medium' && styles.selectedQualityText,
+                ]}>
+                  Medium
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.qualityOption,
+                  { flex: 1, borderTopRightRadius: 50, borderBottomRightRadius: 50 },
+                  quality === 'low' && styles.selectedQuality,
+                ]}
+                onPress={() => setQuality('low')}
+              >
+                <Text style={[
+                  styles.qualityText,
+                  quality === 'low' && styles.selectedQualityText,
+                ]}>
+                  Low
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Show progress if loading */}
+            {loading && (
+              <View style={styles.progressContainer}>
+                <Text style={styles.progressText}>{Math.round(progress)}%</Text>
+                <ProgressBar progress={progress / 100} color="#7F00FF" style={styles.progressBar} />
+                <Text style={styles.progressStatus}>
+                  {progress < 100 ? 'Processing...' : 'Complete!'}
+                </Text>
+              </View>
             )}
+            
+            {/* Show preview if available */}
+            {showPreview && previewData && (
+              <View style={styles.previewContainer}>
+                <Text style={styles.previewTitle}>Content Preview</Text>
+                
+                <View style={styles.previewContent}>
+                  <Image 
+                    source={{ uri: previewData.thumbnail }} 
+                    style={styles.previewThumbnail}
+                    resizeMode="cover"
+                  />
+                  
+                  <View style={styles.previewDetails}>
+                    <Text style={styles.previewVideoTitle} numberOfLines={2}>
+                      {previewData.title}
+                    </Text>
+                    
+                    <Text style={styles.previewAuthor}>
+                      By {previewData.author}
+                    </Text>
+                    
+                    <Text style={styles.previewStats}>
+                      {previewData.duration} • {previewData.views} views
+                    </Text>
+                    
+                    <View style={styles.previewQualityContainer}>
+                      <Text style={styles.previewQualityLabel}>Available Qualities:</Text>
+                      <View style={styles.previewQualityChips}>
+                        {previewData.availableQualities.map((q: string, i: number) => (
+                          <Chip 
+                            key={i} 
+                            style={styles.previewQualityChip}
+                            textStyle={{fontSize: 10}}
+                          >
+                            {q}
+                          </Chip>
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Error message if any */}
+            {showError && (
+              <View style={styles.errorContainer}>
+                <MaterialIcons name="error" size={20} color="#e74c3c" />
+                <Text style={styles.errorText}>
+                  {errorMessage || "Permission error: Media Library access required."}
+                </Text>
+              </View>
+            )}
+
+            {/* Buttons */}
+            <View style={styles.buttonContainer}>
+              <Button
+                mode="contained"
+                onPress={handleDownload}
+                style={styles.downloadButton}
+                disabled={!url.trim() || loading}
+                loading={loading && !showPreview}
+                icon={({size, color}) => (
+                  <MaterialIcons name="file-download" size={size} color={color} />
+                )}
+              >
+                Download
+              </Button>
+
+              <Button
+                mode="outlined"
+                onPress={handleAnalyze}
+                style={styles.analyzeButton}
+                disabled={!url.trim() || loading}
+                loading={loading && showPreview}
+                icon="information-outline"
+              >
+                Analyze
+              </Button>
+            </View>
+          </Card.Content>
+        </Card>
+      </View>
+
+      {/* Recent Downloads Section */}
+      {downloadHistory.length > 0 && (
+        <View style={styles.historySection}>
+          <View style={styles.sectionHeaderContainer}>
+            <MaterialIcons name="history" size={24} color="#7F00FF" />
+            <Text style={styles.sectionHeaderText}>Recent Downloads</Text>
+          </View>
+          
+          <View style={styles.historyList}>
+            {downloadHistory.map(renderDownloadItem)}
           </View>
         </View>
+      )}
 
-        {/* Platform Selection */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionLabel}>Platform</Text>
-          <View style={styles.platformSelector}>
-            <TouchableOpacity
-              style={[
-                styles.platformOption,
-                platform === 'auto-detect' && styles.selectedPlatform,
-              ]}
-              onPress={() => handleSelectPlatform('auto-detect')}
-            >
-              <Ionicons name="sync-outline" size={18} color={platform === 'auto-detect' ? 'white' : '#333'} />
-              <Text style={[
-                styles.platformText,
-                platform === 'auto-detect' && styles.selectedPlatformText,
-              ]}>
-                Auto-detect
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.platformOption,
-                platform === 'youtube' && styles.selectedPlatform,
-              ]}
-              onPress={() => handleSelectPlatform('youtube')}
-            >
-              <FontAwesome5 name="youtube" size={18} color={platform === 'youtube' ? 'white' : 'red'} />
-              <Text style={[
-                styles.platformText,
-                platform === 'youtube' && styles.selectedPlatformText,
-              ]}>
-                YouTube
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.platformOption,
-                platform === 'instagram' && styles.selectedPlatform,
-              ]}
-              onPress={() => handleSelectPlatform('instagram')}
-            >
-              <FontAwesome5 name="instagram" size={18} color={platform === 'instagram' ? 'white' : '#C13584'} />
-              <Text style={[
-                styles.platformText,
-                platform === 'instagram' && styles.selectedPlatformText,
-              ]}>
-                Instagram
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Download Type Selection */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionLabel}>Download Type</Text>
-          <View style={styles.downloadTypeSelector}>
-            <TouchableOpacity
-              style={[
-                styles.downloadTypeOption,
-                { flex: 1, borderTopLeftRadius: 50, borderBottomLeftRadius: 50 },
-                downloadType === 'video' && styles.selectedDownloadType,
-              ]}
-              onPress={() => setDownloadType('video')}
-            >
-              <FontAwesome5 name="video" size={16} color={downloadType === 'video' ? 'white' : '#333'} />
-              <Text style={[
-                styles.downloadTypeText,
-                downloadType === 'video' && styles.selectedDownloadTypeText,
-              ]}>
-                Video
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.downloadTypeOption,
-                { flex: 1, borderTopRightRadius: 50, borderBottomRightRadius: 50 },
-                downloadType === 'audio' && styles.selectedDownloadType,
-              ]}
-              onPress={() => setDownloadType('audio')}
-            >
-              <FontAwesome5 name="music" size={16} color={downloadType === 'audio' ? 'white' : '#333'} />
-              <Text style={[
-                styles.downloadTypeText,
-                downloadType === 'audio' && styles.selectedDownloadTypeText,
-              ]}>
-                Audio
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Quality Selection */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionLabel}>Quality</Text>
-          <View style={styles.qualitySelector}>
-            <TouchableOpacity
-              style={[
-                styles.qualityOption,
-                { flex: 1, borderTopLeftRadius: 50, borderBottomLeftRadius: 50 },
-                quality === 'high' && styles.selectedQuality,
-              ]}
-              onPress={() => setQuality('high')}
-            >
-              <Text style={[
-                styles.qualityText,
-                quality === 'high' && styles.selectedQualityText,
-              ]}>
-                HD High
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.qualityOption,
-                { flex: 1 },
-                quality === 'medium' && styles.selectedQuality,
-              ]}
-              onPress={() => setQuality('medium')}
-            >
-              <Text style={[
-                styles.qualityText,
-                quality === 'medium' && styles.selectedQualityText,
-              ]}>
-                Medium
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.qualityOption,
-                { flex: 1, borderTopRightRadius: 50, borderBottomRightRadius: 50 },
-                quality === 'low' && styles.selectedQuality,
-              ]}
-              onPress={() => setQuality('low')}
-            >
-              <Text style={[
-                styles.qualityText,
-                quality === 'low' && styles.selectedQualityText,
-              ]}>
-                Low
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Buttons */}
-        <View style={styles.buttonContainer}>
-          <Button
-            mode="contained"
-            onPress={handleSubmit}
-            style={styles.downloadButton}
-            disabled={!url.trim()}
-            icon="download"
-          >
-            Download
-          </Button>
-
-          <Button
-            mode="outlined"
-            onPress={handleAnalyze}
-            style={styles.analyzeButton}
-            disabled={!url.trim()}
-            icon="magnify"
-          >
-            Analyze
-          </Button>
+      {/* Features Section */}
+      <View style={styles.featuresSection}>
+        <View style={styles.sectionHeaderContainer}>
+          <MaterialIcons name="stars" size={24} color="#7F00FF" />
+          <Text style={styles.sectionHeaderText}>Supported Platforms</Text>
         </View>
         
-        {/* Error message if any */}
-        <Text style={styles.errorText}>
-          Call to function 'ExpoMediaLibrary.getAlbumAsync' has been rejected.
-          {'\n'}Caused by: Missing MEDIA_LIBRARY permissions.
-        </Text>
+        <View style={styles.featuresGrid}>
+          <View style={styles.featureItem}>
+            {getPlatformIcon('youtube', 32)}
+            <Text style={styles.featureText}>YouTube</Text>
+          </View>
+          <View style={styles.featureItem}>
+            {getPlatformIcon('instagram', 32)}
+            <Text style={styles.featureText}>Instagram</Text>
+          </View>
+          <View style={styles.featureItem}>
+            {getPlatformIcon('twitter', 32)}
+            <Text style={styles.featureText}>Twitter</Text>
+          </View>
+          <View style={styles.featureItem}>
+            {getPlatformIcon('tiktok', 32)}
+            <Text style={styles.featureText}>TikTok</Text>
+          </View>
+          <View style={styles.featureItem}>
+            {getPlatformIcon('facebook', 32)}
+            <Text style={styles.featureText}>Facebook</Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.footerContainer}>
@@ -295,106 +700,93 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  // Header
   header: {
     padding: 20,
     alignItems: 'center',
-    paddingTop: 30,
-    paddingBottom: 30,
+    paddingTop: 40,
+    paddingBottom: 40,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: 'white',
-    marginBottom: 10,
+    marginBottom: 12,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
     maxWidth: '90%',
   },
+  // Card container
+  cardContainer: {
+    marginHorizontal: 16,
+    marginTop: -30,
+    marginBottom: 20,
+  },
   card: {
+    borderRadius: 16,
     backgroundColor: 'white',
-    borderRadius: 12,
-    marginHorizontal: 12,
-    marginTop: -15,
-    padding: 16,
+    overflow: 'hidden',
+    elevation: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
   },
-  platformHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  platformTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 10,
-    color: '#333',
-  },
-  platformDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 16,
-  },
-  // URL Input styles
+  // URL Input 
   urlInputContainer: {
     width: '100%',
-    marginBottom: 12,
+    marginBottom: 20,
   },
   urlInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: '#f7f7f7',
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
   },
   urlInput: {
     flex: 1,
-    height: 50,
+    height: 54,
     paddingHorizontal: 16,
     fontSize: 16,
   },
   iconButton: {
     margin: 0,
   },
-  // Section containers
-  sectionContainer: {
-    marginBottom: 12,
-  },
+  // Section labels
   sectionLabel: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 12,
+    marginTop: 16,
     color: '#333',
   },
   // Platform selector
-  platformSelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  platformScroller: {
+    marginBottom: 16,
   },
   platformOption: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f0f0f0',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    marginRight: 8,
-    marginBottom: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 50,
+    marginRight: 10,
+    marginBottom: 4,
   },
   selectedPlatform: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: '#7F00FF',
   },
   platformText: {
-    marginLeft: 6,
+    marginLeft: 8,
     color: '#333',
+    fontWeight: '500',
   },
   selectedPlatformText: {
     color: 'white',
@@ -403,25 +795,26 @@ const styles = StyleSheet.create({
   downloadTypeSelector: {
     flexDirection: 'row',
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#e0e0e0',
     borderRadius: 50,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   downloadTypeOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 10,
     backgroundColor: '#f8f8f8',
   },
   selectedDownloadType: {
-    backgroundColor: '#3498db',
+    backgroundColor: '#7F00FF',
   },
   downloadTypeText: {
     marginLeft: 6,
     fontSize: 14,
+    fontWeight: '500',
     color: '#333',
   },
   selectedDownloadTypeText: {
@@ -431,26 +824,125 @@ const styles = StyleSheet.create({
   qualitySelector: {
     flexDirection: 'row',
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#e0e0e0',
     borderRadius: 50,
     overflow: 'hidden',
+    marginBottom: 16,
   },
   qualityOption: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 10,
     backgroundColor: '#f8f8f8',
   },
   selectedQuality: {
-    backgroundColor: '#3498db',
+    backgroundColor: '#7F00FF',
   },
   qualityText: {
     fontSize: 14,
+    fontWeight: '500',
     color: '#333',
   },
   selectedQualityText: {
     color: 'white',
+  },
+  // Progress bar
+  progressContainer: {
+    marginVertical: 16,
+    alignItems: 'center',
+  },
+  progressText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#7F00FF',
+    marginBottom: 8,
+  },
+  progressBar: {
+    width: '100%',
+    height: 8,
+    borderRadius: 4,
+  },
+  progressStatus: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+  },
+  // Preview section
+  previewContainer: {
+    marginVertical: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#FAFAFA',
+  },
+  previewTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#7F00FF',
+  },
+  previewContent: {
+    flexDirection: 'row',
+  },
+  previewThumbnail: {
+    width: 120,
+    height: 80,
+    borderRadius: 8,
+  },
+  previewDetails: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  previewVideoTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  previewAuthor: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 4,
+  },
+  previewStats: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 6,
+  },
+  previewQualityContainer: {
+    marginTop: 4,
+  },
+  previewQualityLabel: {
+    fontSize: 12,
+    color: '#555',
+    marginBottom: 4,
+  },
+  previewQualityChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  previewQualityChip: {
+    marginRight: 4,
+    marginBottom: 4,
+    backgroundColor: '#f0f0f0',
+  },
+  // Error container
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEBEE',
+    padding: 10,
+    borderRadius: 8,
+    marginVertical: 12,
+  },
+  errorText: {
+    color: '#e74c3c',
+    fontSize: 13,
+    marginLeft: 8,
+    flex: 1,
   },
   // Buttons
   buttonContainer: {
@@ -462,18 +954,91 @@ const styles = StyleSheet.create({
   downloadButton: {
     flex: 1,
     marginRight: 8,
-    backgroundColor: '#3498db',
+    backgroundColor: '#7F00FF',
+    borderRadius: 8,
+    paddingVertical: 8,
   },
   analyzeButton: {
     flex: 1,
-    borderColor: '#3498db',
+    borderColor: '#7F00FF',
+    borderRadius: 8,
   },
-  // Error message
-  errorText: {
-    color: '#e74c3c',
-    fontSize: 12,
+  // History section
+  historySection: {
+    marginHorizontal: 16,
+    marginBottom: 20,
+  },
+  sectionHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionHeaderText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 8,
+    color: '#333',
+  },
+  historyList: {
+    marginTop: 8,
+  },
+  historyCard: {
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    borderRadius: 12,
+  },
+  historyCardContent: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  historyThumbnail: {
+    width: 80,
+    height: 60,
+    borderRadius: 6,
+  },
+  historyDetails: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  historyDetailText: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 3,
+  },
+  historyDetailLabel: {
+    fontWeight: 'bold',
+    color: '#555',
+  },
+  historyChip: {
+    marginRight: 6,
+    backgroundColor: '#f0f0f0',
+    height: 26,
+  },
+  // Features section
+  featuresSection: {
+    marginHorizontal: 16,
+    marginBottom: 30,
+  },
+  featuresGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
     marginTop: 12,
-    marginBottom: 4,
+  },
+  featureItem: {
+    width: '18%',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  featureText: {
+    fontSize: 12,
+    marginTop: 6,
+    color: '#555',
+    textAlign: 'center',
   },
   // Footer
   footerContainer: {
