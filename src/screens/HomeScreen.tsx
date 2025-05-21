@@ -8,7 +8,8 @@ import {
   ScrollView, 
   Image, 
   Platform,
-  Dimensions 
+  Dimensions,
+  Alert
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -768,9 +769,17 @@ const styles = StyleSheet.create({
   // Header
   header: {
     padding: 20,
-    alignItems: 'center',
     paddingTop: 40,
     paddingBottom: 40,
+  },
+  titleAndAuthContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerTitleContainer: {
+    flex: 1,
   },
   title: {
     fontSize: 28,
@@ -778,6 +787,42 @@ const styles = StyleSheet.create({
     color: 'white',
     marginBottom: 12,
     textAlign: 'center',
+  },
+  authButtonsContainer: {
+    marginLeft: 10,
+  },
+  authButtons: {
+    flexDirection: 'row',
+  },
+  loginButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  loginButtonText: {
+    color: '#7F00FF',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  signupButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'white',
+  },
+  signupButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  headerAvatar: {
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: 'white',
   },
   subtitle: {
     fontSize: 16,

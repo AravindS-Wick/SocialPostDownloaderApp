@@ -4,6 +4,12 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { logout } from '../store/slices/authSlice';
 import { clearHistory } from '../store/slices/historySlice';
+import { 
+  toggleNotifications, 
+  toggleDownloadQualityAuto, 
+  toggleSaveToGallery, 
+  toggleDarkMode 
+} from '../store/slices/settingsSlice';
 import { List, Divider, Button, Card, IconButton } from 'react-native-paper';
 import { clearActivityLogs } from '../services/logger';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -12,11 +18,13 @@ const SettingsScreen = () => {
   const dispatch = useDispatch();
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
   const { downloads } = useSelector((state: RootState) => state.history);
+  const settings = useSelector((state: RootState) => state.settings);
   
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [downloadQualityAuto, setDownloadQualityAuto] = useState(true);
-  const [saveToGallery, setSaveToGallery] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
+  // Use Redux state values for initial values
+  const [notificationsEnabled, setNotificationsEnabled] = useState(settings.notificationsEnabled);
+  const [downloadQualityAuto, setDownloadQualityAuto] = useState(settings.downloadQualityAuto);
+  const [saveToGallery, setSaveToGallery] = useState(settings.saveToGallery);
+  const [darkMode, setDarkMode] = useState(settings.darkMode);
   
   // Handle clearing download history
   const handleClearHistory = () => {
@@ -103,7 +111,10 @@ const SettingsScreen = () => {
           right={props => (
             <Switch
               value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
+              onValueChange={(value) => {
+                setNotificationsEnabled(value);
+                dispatch(toggleNotifications());
+              }}
             />
           )}
         />
