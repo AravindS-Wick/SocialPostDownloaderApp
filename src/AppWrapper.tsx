@@ -1,50 +1,41 @@
-import React, { useEffect } from 'react';
+
+import React from 'react';
 import { Provider as ReduxProvider } from 'react-redux';
-import { PaperProvider, DefaultTheme, adaptNavigationTheme } from 'react-native-paper';
+import { PaperProvider, MD3LightTheme, adaptNavigationTheme } from 'react-native-paper';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useSelector } from 'react-redux';
 import { store } from './store';
 import AppNavigator from './navigation/AppNavigator';
-import { setupFolders } from './services/storage';
-import { checkAndRequestPermissions } from './services/permissions';
-import { requestNotificationPermissions } from './services/notifications';
 import { lightTheme, darkTheme } from './themes';
 
-// Adapt the navigation theme to react-native-paper
-const { LightTheme } = adaptNavigationTheme({
-  reactNavigationLight: DefaultTheme,
+const { LightTheme, DarkTheme } = adaptNavigationTheme({
+  reactNavigationLight: MD3LightTheme,
+  reactNavigationDark: darkTheme,
 });
 
-const AppWrapper = () => {
-  // Initialize app services
-  useEffect(() => {
-    const initApp = async () => {
-      // Request necessary permissions
-      await checkAndRequestPermissions();
-      
-      // Setup storage folders
-      await setupFolders();
-      
-      // Request notification permissions
-      await requestNotificationPermissions();
-    };
-    
-    initApp();
-  }, []);
+const AppContent = () => {
+  const isDarkMode = useSelector((state) => state.settings?.isDarkMode);
+  const theme = isDarkMode ? darkTheme : lightTheme;
+  const navTheme = isDarkMode ? DarkTheme : LightTheme;
 
   return (
-    <ReduxProvider store={store}>
-      <PaperProvider theme={lightTheme}>
-        <SafeAreaProvider>
-          <NavigationContainer theme={LightTheme}>
-            <StatusBar style="auto" />
-            <AppNavigator />
-          </NavigationContainer>
-        </SafeAreaProvider>
-      </PaperProvider>
-    </ReduxProvider>
+    <PaperProvider theme={theme}>
+      <NavigationContainer theme={navTheme}>
+        <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+        <AppNavigator />
+      </NavigationContainer>
+    </PaperProvider>
   );
 };
 
-export default AppWrapper;
+export default function AppWrapper() {
+  return (
+    <SafeAreaProvider>
+      <ReduxProvider store={store}>
+        <AppContent />
+      </ReduxProvider>
+    </SafeAreaProvider>
+  );
+}
