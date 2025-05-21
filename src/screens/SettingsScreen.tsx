@@ -128,7 +128,10 @@ const SettingsScreen = () => {
           right={props => (
             <Switch
               value={downloadQualityAuto}
-              onValueChange={setDownloadQualityAuto}
+              onValueChange={(value) => {
+                setDownloadQualityAuto(value);
+                dispatch(toggleDownloadQualityAuto());
+              }}
             />
           )}
         />
@@ -142,7 +145,10 @@ const SettingsScreen = () => {
           right={props => (
             <Switch
               value={saveToGallery}
-              onValueChange={setSaveToGallery}
+              onValueChange={(value) => {
+                setSaveToGallery(value);
+                dispatch(toggleSaveToGallery());
+              }}
             />
           )}
         />
@@ -156,7 +162,10 @@ const SettingsScreen = () => {
           right={props => (
             <Switch
               value={darkMode}
-              onValueChange={setDarkMode}
+              onValueChange={(value) => {
+                setDarkMode(value);
+                dispatch(toggleDarkMode());
+              }}
             />
           )}
         />
@@ -234,8 +243,8 @@ const SettingsScreen = () => {
       </List.Section>
       
       {/* Account Actions */}
-      {isAuthenticated && (
-        <View style={styles.accountActions}>
+      <View style={styles.accountActions}>
+        {isAuthenticated ? (
           <Button 
             mode="outlined" 
             onPress={handleLogout}
@@ -244,8 +253,17 @@ const SettingsScreen = () => {
           >
             Log Out
           </Button>
-        </View>
-      )}
+        ) : (
+          <Button 
+            mode="contained" 
+            onPress={() => Alert.alert('Login', 'This would navigate to the login screen.')}
+            style={styles.loginButton}
+            icon="login-variant"
+          >
+            Log In / Sign Up
+          </Button>
+        )}
+      </View>
       
       <View style={styles.footer}>
         <Text style={styles.footerText}>Social Media Downloader © 2025</Text>
@@ -291,6 +309,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderColor: '#e74c3c',
     borderWidth: 1,
+  },
+  loginButton: {
+    width: '80%',
+    marginTop: 10,
+    backgroundColor: '#7F00FF',
   },
   footer: {
     padding: 20,
