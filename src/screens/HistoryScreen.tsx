@@ -1,185 +1,224 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
-import { Text, Card, Button, ActivityIndicator, Searchbar, useTheme, IconButton } from 'react-native-paper';
+import React, { useState } from 'react';
+import { View, StyleSheet, Text, FlatList, Image, TouchableOpacity, Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { Button, Divider, IconButton, Searchbar, Menu } from 'react-native-paper';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { Feather } from '@expo/vector-icons';
-import { mockAPI } from '../services/api';
-import HistoryItem from '../components/HistoryItem';
-import { getActivityLogs, clearActivityLogs } from '../services/logger';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '../store';
+import { removeDownloadFromHistory, clearHistory } from '../store/slices/historySlice';
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { DownloadHistoryItem } from '../store/slices/historySlice';
 
-type HistoryScreenNavigationProp = StackNavigationProp<RootStackParamList, 'History'>;
-
-interface HistoryScreenProps {
-  navigation: HistoryScreenNavigationProp;
-}
-
-const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
-  const theme = useTheme();
-  const [history, setHistory] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+const HistoryScreen = () => {
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const dispatch = useDispatch();
+  const { downloads } = useSelector((state: RootState) => state.history);
+  
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredHistory, setFilteredHistory] = useState<any[]>([]);
-
-  // Load download history
-  useEffect(() => {
-    loadHistory();
-  }, []);
-
-  const loadHistory = async () => {
-    try {
-      setLoading(true);
-      
-      // Get history from API mock
-      const response = await mockAPI.getDownloadHistory();
-      const apiHistory = response.data.history;
-      
-      // Get local activity logs as backup
-      const activityLogs = await getActivityLogs();
-      const successfulDownloads = activityLogs
-        .filter(log => log.status === 'complete' && log.meta.success)
-        .map(log => ({
-          id: `local_${log.timestamp}`,
-          url: log.meta.url,
-          title: `Downloaded from ${log.type}`,
-          platform: log.type,
-          type: log.meta.downloadType,
-          createdAt: log.timestamp,
-        }));
-      
-      // Combine both sources (in a real app we'd deduplicate)
-      const combinedHistory = [...apiHistory, ...successfulDownloads];
-      
-      setHistory(combinedHistory);
-      setFilteredHistory(combinedHistory);
-    } catch (error) {
-      console.error('Failed to load history:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle search
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    
-    if (!query.trim()) {
-      setFilteredHistory(history);
-      return;
-    }
-    
-    const filtered = history.filter(item => 
-      item.title.toLowerCase().includes(query.toLowerCase()) ||
-      item.platform.toLowerCase().includes(query.toLowerCase())
-    );
-    setFilteredHistory(filtered);
-  };
-
-  // Clear history with confirmation
-  const confirmClearHistory = () => {
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  
+  // Filter downloads based on search query
+  const filteredDownloads = searchQuery
+    ? downloads.filter((item) =>
+        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.platform.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : downloads;
+  
+  // Handle download item deletion
+  const handleDeleteItem = (id: string) => {
     Alert.alert(
-      'Clear History',
-      'Are you sure you want to clear your download history? This cannot be undone.',
+      'Delete Download',
+      'Are you sure you want to remove this item from your history?',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
-          text: 'Clear', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              
-              // Clear local activity logs
-              await clearActivityLogs();
-              
-              // In a real app, we would also call an API to clear server-side history
-              
-              // Reset state
-              setHistory([]);
-              setFilteredHistory([]);
-              setSearchQuery('');
-              
-              Alert.alert('Success', 'Download history cleared successfully.');
-            } catch (error) {
-              console.error('Failed to clear history:', error);
-              Alert.alert('Error', 'Failed to clear download history. Please try again.');
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
+          text: 'Delete', 
+          onPress: () => dispatch(removeDownloadFromHistory(id)),
+          style: 'destructive'
+        },
       ]
     );
   };
-
-  // Handle item press - redownload
-  const handleItemPress = (item: any) => {
-    navigation.navigate('Download', { url: item.url, platform: item.platform });
+  
+  // Handle redownload of an item
+  const handleRedownload = (item: DownloadHistoryItem) => {
+    navigation.navigate('Download', {
+      url: item.url,
+      platform: item.platform,
+    });
   };
-
+  
+  // Render each download history item
+  const renderHistoryItem = ({ item }: { item: DownloadHistoryItem }) => {
+    const date = new Date(item.createdAt);
+    const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    
+    const getPlatformIcon = () => {
+      switch (item.platform.toLowerCase()) {
+        case 'youtube':
+          return <FontAwesome5 name="youtube" size={22} color="red" />;
+        case 'instagram':
+          return <FontAwesome5 name="instagram" size={22} color="#C13584" />;
+        case 'twitter':
+        case 'x':
+          return <FontAwesome5 name="twitter" size={22} color="#1DA1F2" />;
+        case 'tiktok':
+          return <FontAwesome5 name="tiktok" size={22} color="#000000" />;
+        case 'facebook':
+          return <FontAwesome5 name="facebook" size={22} color="#4267B2" />;
+        default:
+          return <FontAwesome5 name="link" size={22} color="#777777" />;
+      }
+    };
+    
+    const getTypeIcon = () => {
+      switch (item.type) {
+        case 'video':
+          return <Ionicons name="videocam" size={16} color="#3498db" />;
+        case 'audio':
+          return <Ionicons name="musical-notes" size={16} color="#9b59b6" />;
+        case 'image':
+          return <Ionicons name="image" size={16} color="#2ecc71" />;
+        default:
+          return <Ionicons name="document" size={16} color="#95a5a6" />;
+      }
+    };
+    
+    return (
+      <View style={styles.itemContainer}>
+        <View style={styles.itemContent}>
+          <TouchableOpacity 
+            style={styles.thumbnailContainer}
+            onPress={() => handleRedownload(item)}
+          >
+            <Image 
+              source={{ uri: item.thumbnail || 'https://via.placeholder.com/120x90' }} 
+              style={styles.thumbnail}
+              resizeMode="cover"
+            />
+            <View style={styles.typeIconContainer}>
+              {getTypeIcon()}
+            </View>
+          </TouchableOpacity>
+          
+          <View style={styles.infoContainer}>
+            <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+            
+            <View style={styles.detailsRow}>
+              <View style={styles.platformContainer}>
+                {getPlatformIcon()}
+                <Text style={styles.platformText}>{item.platform}</Text>
+              </View>
+              
+              <View style={styles.qualityContainer}>
+                <Text style={styles.qualityText}>{item.quality}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.metaContainer}>
+              <Text style={styles.dateText}>{formattedDate}</Text>
+              
+              {item.fileSize && (
+                <Text style={styles.sizeText}>{item.fileSize}</Text>
+              )}
+            </View>
+          </View>
+        </View>
+        
+        <View style={styles.actionsContainer}>
+          <IconButton
+            icon="download"
+            size={20}
+            onPress={() => handleRedownload(item)}
+            tooltip="Download again"
+          />
+          <IconButton
+            icon="delete"
+            size={20}
+            onPress={() => handleDeleteItem(item.id)}
+            tooltip="Delete from history"
+          />
+        </View>
+      </View>
+    );
+  };
+  
   // Render empty state
-  const renderEmptyState = () => (
+  const renderEmptyComponent = () => (
     <View style={styles.emptyContainer}>
-      <Feather name="inbox" size={64} color={theme.colors.primary} />
-      <Text style={[styles.emptyText, { color: theme.colors.text }]}>
-        No downloads yet
-      </Text>
-      <Text style={[styles.emptySubtext, { color: theme.colors.text }]}>
-        Downloaded content will appear here
+      <Ionicons name="time-outline" size={80} color="#ccc" />
+      <Text style={styles.emptyTitle}>No Downloads Yet</Text>
+      <Text style={styles.emptyText}>
+        Your download history will appear here.
       </Text>
       <Button 
         mode="contained" 
         onPress={() => navigation.navigate('Main')}
-        style={styles.emptyButton}
+        style={styles.startButton}
+        icon="download"
       >
         Start Downloading
       </Button>
     </View>
   );
+  
+  // Handle clear all history
+  const handleClearHistory = () => {
+    Alert.alert(
+      'Clear History',
+      'Are you sure you want to clear your entire download history?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Clear', 
+          onPress: () => dispatch(clearHistory()),
+          style: 'destructive'
+        },
+      ]
+    );
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Search bar */}
-      <Searchbar
-        placeholder="Search downloads"
-        onChangeText={handleSearch}
-        value={searchQuery}
-        style={styles.searchBar}
-      />
-      
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={{ color: theme.colors.text, marginTop: 16 }}>
-            Loading download history...
-          </Text>
-        </View>
-      ) : (
-        <>
-          {history.length > 0 && (
-            <View style={styles.headerContainer}>
-              <Text style={[styles.headerText, { color: theme.colors.text }]}>
-                {filteredHistory.length} {filteredHistory.length === 1 ? 'download' : 'downloads'}
-              </Text>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Searchbar
+          placeholder="Search downloads..."
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={styles.searchBar}
+        />
+        
+        {downloads.length > 0 && (
+          <Menu
+            visible={menuVisible}
+            onDismiss={() => setMenuVisible(false)}
+            anchor={
               <IconButton
-                icon="trash-2"
-                size={20}
-                onPress={confirmClearHistory}
+                icon="dots-vertical"
+                onPress={() => setMenuVisible(true)}
               />
-            </View>
-          )}
-          
-          <FlatList
-            data={filteredHistory}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-              <HistoryItem item={item} onPress={() => handleItemPress(item)} />
-            )}
-            contentContainerStyle={history.length === 0 ? { flex: 1 } : styles.listContent}
-            ListEmptyComponent={renderEmptyState}
-          />
-        </>
-      )}
+            }
+          >
+            <Menu.Item 
+              onPress={handleClearHistory} 
+              title="Clear All History" 
+              leadingIcon="delete-sweep"
+            />
+          </Menu>
+        )}
+      </View>
+      
+      <FlatList
+        data={filteredDownloads}
+        renderItem={renderHistoryItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={downloads.length === 0 ? styles.emptyList : styles.list}
+        ItemSeparatorComponent={() => <Divider />}
+        ListEmptyComponent={renderEmptyComponent}
+      />
     </View>
   );
 };
@@ -187,47 +226,130 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    backgroundColor: '#f8f9fa',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   searchBar: {
-    marginBottom: 16,
-    elevation: 2,
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+    elevation: 0,
   },
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  headerText: {
-    fontSize: 16,
-  },
-  listContent: {
+  list: {
     paddingBottom: 20,
   },
-  loadingContainer: {
-    flex: 1,
+  emptyList: {
+    flexGrow: 1,
+  },
+  itemContainer: {
+    backgroundColor: 'white',
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+  },
+  itemContent: {
+    flexDirection: 'row',
+  },
+  thumbnailContainer: {
+    position: 'relative',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginRight: 12,
+  },
+  thumbnail: {
+    width: 120,
+    height: 75,
+    backgroundColor: '#e0e0e0',
+  },
+  typeIconContainer: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  infoContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    color: '#333',
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  platformContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  platformText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#555',
+  },
+  qualityContainer: {
+    backgroundColor: '#e8f4fd',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  qualityText: {
+    fontSize: 12,
+    color: '#3498db',
+  },
+  metaContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  dateText: {
+    fontSize: 12,
+    color: '#888',
+  },
+  sizeText: {
+    fontSize: 12,
+    color: '#888',
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 30,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 8,
+    color: '#333',
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
+    fontSize: 16,
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 24,
+    color: '#777',
+    marginBottom: 30,
   },
-  emptyButton: {
+  startButton: {
     paddingHorizontal: 16,
   },
 });

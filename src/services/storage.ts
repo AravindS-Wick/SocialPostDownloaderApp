@@ -1,116 +1,184 @@
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { Platform } from 'react-native';
+import { v4 as uuidv4 } from 'uuid';
+import { checkPermissions, requestMediaLibraryPermissions } from './permissions';
 
-// Define the base folder for all downloads
-const DOWNLOAD_BASE_FOLDER = 'SocialSaver';
+// Constants for folder structure
+const APP_FOLDER_NAME = 'SocialSaver';
+const VIDEO_FOLDER_NAME = 'Video';
+const AUDIO_FOLDER_NAME = 'Audio';
+const IMAGE_FOLDER_NAME = 'Images';
 
-// Setup the folders structure for downloads
+/**
+ * Setup required folders for storing downloaded content
+ * @returns {Promise<void>}
+ */
 export const setupFolders = async (): Promise<void> => {
-  // Skip for web platform
+  // Skip for web as FileSystem is not fully supported
   if (Platform.OS === 'web') {
+    console.log('Folders not created for web platform');
     return;
   }
-  
+
   try {
-    // Check if we have permission first
-    const permission = await MediaLibrary.requestPermissionsAsync();
-    if (!permission.granted) {
-      throw new Error('Media library permission is required');
+    // Check if we have permissions first
+    const hasPermission = await checkPermissions();
+    if (!hasPermission) {
+      console.log('No permissions to create folders');
+      return;
     }
+
+    // Create the main app folder in MediaLibrary
+    const mainAlbum = await MediaLibrary.getAlbumAsync(APP_FOLDER_NAME);
     
-    // Create base folder in Documents directory
-    const baseDir = `${FileSystem.documentDirectory}${DOWNLOAD_BASE_FOLDER}`;
-    const videosDir = `${baseDir}/Video`;
-    const audioDir = `${baseDir}/Audio`;
-    const imagesDir = `${baseDir}/Image`;
-    
-    // Create base directory if it doesn't exist
-    const baseInfo = await FileSystem.getInfoAsync(baseDir);
-    if (!baseInfo.exists) {
-      await FileSystem.makeDirectoryAsync(baseDir, { intermediates: true });
-    }
-    
-    // Create videos directory if it doesn't exist
-    const videosInfo = await FileSystem.getInfoAsync(videosDir);
-    if (!videosInfo.exists) {
-      await FileSystem.makeDirectoryAsync(videosDir, { intermediates: true });
-    }
-    
-    // Create audio directory if it doesn't exist
-    const audioInfo = await FileSystem.getInfoAsync(audioDir);
-    if (!audioInfo.exists) {
-      await FileSystem.makeDirectoryAsync(audioDir, { intermediates: true });
-    }
-    
-    // Create images directory if it doesn't exist
-    const imagesInfo = await FileSystem.getInfoAsync(imagesDir);
-    if (!imagesInfo.exists) {
-      await FileSystem.makeDirectoryAsync(imagesDir, { intermediates: true });
+    if (!mainAlbum) {
+      // Create a temporary file to use for creating the album
+      const tempFilePath = `${FileSystem.cacheDirectory}temp_${Date.now()}.jpg`;
+      
+      // Write a small file
+      await FileSystem.writeAsStringAsync(
+        tempFilePath,
+        'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', // Base64 of a 1x1 transparent GIF
+        { encoding: FileSystem.EncodingType.Base64 }
+      );
+      
+      // Save to MediaLibrary to create the album
+      const asset = await MediaLibrary.createAssetAsync(tempFilePath);
+      await MediaLibrary.createAlbumAsync(APP_FOLDER_NAME, asset, false);
+      
+      // Clean up the temp file
+      await FileSystem.deleteAsync(tempFilePath, { idempotent: true });
+      
+      console.log(`Created main album: ${APP_FOLDER_NAME}`);
+      
+      // Create subfolders by saving placeholder files
+      await createSubFolder(VIDEO_FOLDER_NAME);
+      await createSubFolder(AUDIO_FOLDER_NAME);
+      await createSubFolder(IMAGE_FOLDER_NAME);
+    } else {
+      console.log(`Album ${APP_FOLDER_NAME} already exists`);
     }
   } catch (error) {
     console.error('Error setting up folders:', error);
-    throw new Error('Failed to setup download folders');
   }
 };
 
-// Save a file to the appropriate folder
+/**
+ * Create a subfolder in the app's main folder
+ * @param {string} folderName The name of the subfolder
+ * @returns {Promise<void>}
+ */
+const createSubFolder = async (folderName: string): Promise<void> => {
+  try {
+    const subFolderPath = `${APP_FOLDER_NAME}/${folderName}`;
+    
+    // Check if subfolder already exists
+    const subAlbum = await MediaLibrary.getAlbumAsync(subFolderPath);
+    
+    if (!subAlbum) {
+      // Create a temporary file to use for creating the album
+      const tempFilePath = `${FileSystem.cacheDirectory}temp_${folderName}_${Date.now()}.jpg`;
+      
+      // Write a small file
+      await FileSystem.writeAsStringAsync(
+        tempFilePath,
+        'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', // Base64 of a 1x1 transparent GIF
+        { encoding: FileSystem.EncodingType.Base64 }
+      );
+      
+      // Save to MediaLibrary to create the album
+      const asset = await MediaLibrary.createAssetAsync(tempFilePath);
+      await MediaLibrary.createAlbumAsync(folderName, asset, false);
+      
+      // Clean up the temp file
+      await FileSystem.deleteAsync(tempFilePath, { idempotent: true });
+      
+      console.log(`Created subfolder: ${folderName}`);
+    } else {
+      console.log(`Subfolder ${folderName} already exists`);
+    }
+  } catch (error) {
+    console.error(`Error creating subfolder ${folderName}:`, error);
+  }
+};
+
+/**
+ * Save a downloaded file to the device
+ * @param {string} fileUri The URI of the file to save
+ * @param {string} fileName The name to save the file as
+ * @param {'video' | 'audio' | 'image'} type The type of file
+ * @returns {Promise<string | null>} The path where the file was saved, or null on failure
+ */
 export const saveFile = async (
   fileUri: string,
-  filename: string,
+  fileName: string,
   type: 'video' | 'audio' | 'image'
-): Promise<string> => {
-  // Skip for web platform
+): Promise<string | null> => {
+  // For web, return a mock result
   if (Platform.OS === 'web') {
+    console.log('File saving not supported on web');
     return fileUri;
   }
   
   try {
-    // Choose the correct folder based on type
-    let targetFolder = '';
+    // Ensure we have permissions
+    const hasPermission = await requestMediaLibraryPermissions();
+    if (!hasPermission) {
+      console.log('No permissions to save file');
+      return null;
+    }
+    
+    // Determine which folder to save to
+    let folderName = '';
     switch (type) {
       case 'video':
-        targetFolder = 'Video';
+        folderName = VIDEO_FOLDER_NAME;
         break;
       case 'audio':
-        targetFolder = 'Audio';
+        folderName = AUDIO_FOLDER_NAME;
         break;
       case 'image':
-        targetFolder = 'Image';
+        folderName = IMAGE_FOLDER_NAME;
         break;
       default:
-        targetFolder = 'Video';
+        folderName = VIDEO_FOLDER_NAME;
     }
     
-    // Setup target path
-    const targetDir = `${FileSystem.documentDirectory}${DOWNLOAD_BASE_FOLDER}/${targetFolder}`;
-    const targetPath = `${targetDir}/${filename}`;
+    // Create a unique file name if not provided
+    if (!fileName) {
+      fileName = `${type}_${uuidv4()}`;
+    }
     
-    // Copy the file to the target directory
+    // Ensure file has the right extension
+    if (!fileName.includes('.')) {
+      if (type === 'video') fileName += '.mp4';
+      else if (type === 'audio') fileName += '.mp3';
+      else if (type === 'image') fileName += '.jpg';
+    }
+    
+    // Path to save the file in FileSystem cache first
+    const fileDestination = `${FileSystem.cacheDirectory}${fileName}`;
+    
+    // Copy file to cache location
     await FileSystem.copyAsync({
       from: fileUri,
-      to: targetPath,
+      to: fileDestination,
     });
     
-    // Save to media library so it's visible in the gallery
-    const asset = await MediaLibrary.createAssetAsync(targetPath);
+    // Save to MediaLibrary
+    const asset = await MediaLibrary.createAssetAsync(fileDestination);
     
-    // Create album if it doesn't exist
-    const albums = await MediaLibrary.getAlbumsAsync();
-    let album = albums.find(a => a.title === DOWNLOAD_BASE_FOLDER);
+    // Add to appropriate album
+    await MediaLibrary.createAlbumAsync(APP_FOLDER_NAME, asset, false);
+    console.log(`File saved to ${APP_FOLDER_NAME}/${folderName}/${fileName}`);
     
-    if (!album) {
-      album = await MediaLibrary.createAlbumAsync(DOWNLOAD_BASE_FOLDER, asset, false);
-    } else {
-      await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-    }
+    // Clean up the cache file
+    await FileSystem.deleteAsync(fileDestination, { idempotent: true });
     
-    // Delete the cached file to save space
-    await FileSystem.deleteAsync(fileUri, { idempotent: true });
-    
-    return targetPath;
+    return asset.uri;
   } catch (error) {
     console.error('Error saving file:', error);
-    throw new Error('Failed to save downloaded file');
+    return null;
   }
 };

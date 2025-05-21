@@ -1,221 +1,389 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
-import { Text, Surface, Button, useTheme, ProgressBar } from 'react-native-paper';
-import { RouteProp } from '@react-navigation/native';
+import { View, StyleSheet, Text, Image, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { Button, ActivityIndicator, useTheme, Chip, Divider } from 'react-native-paper';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
-
-import DownloadForm from '../components/DownloadForm';
-import ResolutionPicker from '../components/ResolutionPicker';
-import DownloadProgress from '../components/DownloadProgress';
-import DownloadService from '../services/DownloadService';
-import { checkAndRequestPermissions } from '../services/permissions';
-import { setIsDownloading, setProgress, setAvailableResolutions } from '../store/slices/downloadSlice';
+import { setAvailableResolutions, setDownloadType, setIsDownloading, setProgress } from '../store/slices/downloadSlice';
+import { addDownloadToHistory } from '../store/slices/historySlice';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import DownloadService, { DownloadOptions, DownloadProgress } from '../services/DownloadService';
+import { detectPlatformFromUrl } from '../services/api';
+import { v4 as uuidv4 } from 'uuid';
 import { logDownloadAttempt, logDownloadComplete } from '../services/logger';
 
+// Define types for navigation and route
 type DownloadScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Download'>;
 type DownloadScreenRouteProp = RouteProp<RootStackParamList, 'Download'>;
 
+// Prop type for the component
 interface DownloadScreenProps {
   navigation: DownloadScreenNavigationProp;
   route: DownloadScreenRouteProp;
 }
 
 const DownloadScreen: React.FC<DownloadScreenProps> = ({ navigation, route }) => {
+  // Get theme and initialize dispatch
   const theme = useTheme();
   const dispatch = useDispatch();
   
-  // Get the URL and platform from the navigation params
-  const { url: urlParam, platform: platformParam } = route.params || {};
-  
-  // Get download state from Redux
+  // Get state from Redux
   const { isDownloading, progress, availableResolutions } = useSelector(
     (state: RootState) => state.download
   );
   
   // Local state
-  const [url, setUrl] = useState(urlParam || '');
-  const [platform, setPlatform] = useState(platformParam || 'auto');
-  const [selectedResolution, setSelectedResolution] = useState('720p');
-  const [downloadType, setDownloadType] = useState<'video' | 'audio'>('video');
+  const [url, setUrl] = useState('');
+  const [platform, setPlatform] = useState('');
+  const [mediaInfo, setMediaInfo] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [downloadResult, setDownloadResult] = useState<any>(null);
+  const [selectedQuality, setSelectedQuality] = useState('720p');
+  const [selectedType, setSelectedType] = useState<'video' | 'audio'>('video');
   
-  // Check permissions when component mounts
+  // Set up navigation options
   useEffect(() => {
-    const checkPermissions = async () => {
-      const hasPermissions = await checkAndRequestPermissions();
-      if (!hasPermissions) {
-        Alert.alert(
-          'Permissions Required',
-          'This app needs access to your media library to save downloads. Please grant the permissions in your device settings.',
-          [{ text: 'OK' }]
-        );
-      }
-    };
-    
-    checkPermissions();
-  }, []);
+    navigation.setOptions({
+      title: 'Download Content',
+      headerTitleStyle: {
+        fontWeight: 'bold',
+      },
+    });
+  }, [navigation]);
   
-  // Handle form submission
-  const handleSubmit = async (urlValue: string, platformValue: string) => {
+  // Initialize from route params
+  useEffect(() => {
+    if (route.params) {
+      const { url: routeUrl, platform: routePlatform } = route.params;
+      if (routeUrl) {
+        setUrl(routeUrl);
+        // If platform not provided, detect it
+        const detectedPlatform = routePlatform || detectPlatformFromUrl(routeUrl);
+        setPlatform(detectedPlatform);
+        fetchMediaInfo(routeUrl);
+      }
+    }
+  }, [route.params]);
+  
+  // Fetch information about the media
+  const fetchMediaInfo = async (mediaUrl: string) => {
     try {
+      setLoading(true);
       setError(null);
+      
+      // Log the download attempt
+      await logDownloadAttempt(mediaUrl, platform);
+      
+      // Get information about the media
+      const info = await DownloadService.getMediaInfo(mediaUrl);
+      setMediaInfo(info);
+      
+      // Set available resolutions in Redux
+      if (info.qualities) {
+        dispatch(setAvailableResolutions(info.qualities));
+        // Set default quality to highest available
+        if (info.qualities.length > 0) {
+          setSelectedQuality(info.qualities[0]);
+        }
+      }
+      
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching media info:', err);
+      setError('Failed to get information about the media. Please check the URL and try again.');
+      setLoading(false);
+    }
+  };
+  
+  // Handle download start
+  const handleDownload = async () => {
+    if (!url || isDownloading) return;
+    
+    try {
+      // Set downloading state
       dispatch(setIsDownloading(true));
-      dispatch(setProgress(0));
+      setError(null);
       
-      // Log download attempt
-      await logDownloadAttempt(urlValue, platformValue, downloadType);
+      // Create download options
+      const downloadOptions: DownloadOptions = {
+        url,
+        platform,
+        type: selectedType,
+        quality: selectedQuality,
+        title: mediaInfo?.title || 'Downloaded Content',
+      };
       
-      // Get media info to determine available resolutions
-      const mediaInfo = await DownloadService.getMediaInfo(urlValue);
-      
-      // Mock available resolutions for now
-      // In a real app, these would come from the mediaInfo response
-      const resolutions = ['360p', '480p', '720p', '1080p'];
-      dispatch(setAvailableResolutions(resolutions));
-      
-      // Start download process
+      // Start download and track progress
       const result = await DownloadService.downloadContent(
-        {
-          url: urlValue,
-          platform: platformValue,
-          type: downloadType,
-          quality: selectedResolution,
-          title: mediaInfo?.title,
-        },
-        (downloadProgress) => {
+        downloadOptions,
+        (downloadProgress: DownloadProgress) => {
           dispatch(setProgress(downloadProgress.progress));
         }
       );
       
-      // Log download completion
-      await logDownloadComplete(urlValue, platformValue, downloadType, result.success);
-      
-      if (result.success) {
-        setDownloadResult(result);
+      // Handle download result
+      if (result.success && result.metadata) {
+        // Add to history
+        const historyItem = {
+          id: uuidv4(),
+          url,
+          title: result.metadata.title,
+          thumbnail: result.metadata.thumbnail,
+          platform,
+          type: selectedType,
+          quality: selectedQuality,
+          createdAt: new Date().toISOString(),
+          fileSize: result.metadata.fileSize,
+          filePath: result.filePath,
+        };
+        
+        dispatch(addDownloadToHistory(historyItem));
+        
+        // Log successful download
+        await logDownloadComplete(url, platform, selectedType, result.metadata.title);
+        
+        // Show success alert
+        Alert.alert(
+          'Download Complete',
+          `Successfully downloaded "${result.metadata.title}"`,
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
       } else {
-        setError(result.error || 'Download failed');
+        // Show error
+        setError(result.error || 'Failed to download. Please try again.');
       }
-      
-      dispatch(setIsDownloading(false));
     } catch (err) {
-      const errorMessage = (err as Error).message;
-      setError(`An error occurred: ${errorMessage}`);
+      console.error('Download error:', err);
+      setError('An unexpected error occurred during download.');
+    } finally {
       dispatch(setIsDownloading(false));
-      await logDownloadComplete(urlValue, platformValue, downloadType, false, errorMessage);
-      console.error(err);
     }
   };
   
-  // Start download when the screen loads if URL is provided
-  useEffect(() => {
-    if (urlParam && platformParam) {
-      handleSubmit(urlParam, platformParam);
+  // Handle type selection
+  const handleTypeSelect = (type: 'video' | 'audio') => {
+    setSelectedType(type);
+    dispatch(setDownloadType(type));
+  };
+  
+  // Get platform icon
+  const getPlatformIcon = () => {
+    switch (platform.toLowerCase()) {
+      case 'youtube':
+        return <FontAwesome5 name="youtube" size={24} color="red" />;
+      case 'instagram':
+        return <FontAwesome5 name="instagram" size={24} color="#C13584" />;
+      case 'twitter':
+      case 'x':
+        return <FontAwesome5 name="twitter" size={24} color="#1DA1F2" />;
+      case 'tiktok':
+        return <FontAwesome5 name="tiktok" size={24} color="#000000" />;
+      case 'facebook':
+        return <FontAwesome5 name="facebook" size={24} color="#4267B2" />;
+      default:
+        return <FontAwesome5 name="link" size={24} color="#777777" />;
     }
-  }, []);
-
+  };
+  
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Surface style={[styles.formContainer, { backgroundColor: theme.colors.surface }]}>
-        <Text style={[styles.title, { color: theme.colors.primary }]}>Download Media</Text>
-        
-        {!isDownloading && !downloadResult && (
-          <>
-            <DownloadForm
-              onSubmit={handleSubmit}
-              error={error}
-              initialUrl={url}
-              initialPlatform={platform}
+    <ScrollView style={styles.container}>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Fetching media information...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={48} color={theme.colors.error} />
+          <Text style={[styles.errorText, { color: theme.colors.error }]}>{error}</Text>
+          <Button 
+            mode="contained" 
+            onPress={() => fetchMediaInfo(url)}
+            style={styles.retryButton}
+          >
+            Retry
+          </Button>
+          <Button 
+            mode="outlined" 
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
+            Go Back
+          </Button>
+        </View>
+      ) : mediaInfo ? (
+        <View style={styles.contentContainer}>
+          {/* Media Preview */}
+          <View style={styles.previewContainer}>
+            <Image 
+              source={{ uri: mediaInfo.thumbnail || 'https://via.placeholder.com/300x200' }} 
+              style={styles.thumbnail}
+              resizeMode="cover"
             />
-            
-            {availableResolutions.length > 0 && (
-              <View style={styles.optionsContainer}>
-                <ResolutionPicker
-                  availableResolutions={availableResolutions}
-                  selectedResolution={selectedResolution}
-                  onSelect={setSelectedResolution}
-                />
-                
-                <View style={styles.typeContainer}>
-                  <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                    Download Type
-                  </Text>
-                  <View style={styles.buttonGroup}>
-                    <Button
-                      mode={downloadType === 'video' ? 'contained' : 'outlined'}
-                      onPress={() => setDownloadType('video')}
-                      style={styles.typeButton}
-                    >
-                      Video
-                    </Button>
-                    <Button
-                      mode={downloadType === 'audio' ? 'contained' : 'outlined'}
-                      onPress={() => setDownloadType('audio')}
-                      style={styles.typeButton}
-                    >
-                      Audio Only
-                    </Button>
-                  </View>
-                </View>
-                
-                <Button
-                  mode="contained"
-                  onPress={() => handleSubmit(url, platform)}
-                  style={styles.downloadButton}
-                >
-                  Start Download
-                </Button>
-              </View>
-            )}
-          </>
-        )}
-        
-        {isDownloading && (
-          <DownloadProgress progress={progress} />
-        )}
-        
-        {downloadResult && (
-          <View style={styles.resultContainer}>
-            <Text style={[styles.successText, { color: theme.colors.primary }]}>
-              Download Completed!
-            </Text>
-            <Text style={{ color: theme.colors.text }}>
-              File: {downloadResult.metadata?.title || downloadResult.fileUri?.split('/').pop()}
-            </Text>
-            {downloadResult.metadata?.quality && (
-              <Text style={{ color: theme.colors.text }}>
-                Resolution: {downloadResult.metadata.quality}
+            <View style={styles.platformBadge}>
+              {getPlatformIcon()}
+              <Text style={styles.platformText}>
+                {platform.charAt(0).toUpperCase() + platform.slice(1)}
               </Text>
-            )}
-            <Text style={{ color: theme.colors.text, marginBottom: 16 }}>
-              Saved to: {downloadResult.metadata?.type === 'audio' ? 'Audio' : 'Video'} folder
-            </Text>
-            
-            <View style={styles.buttonRow}>
-              <Button
-                mode="outlined"
-                onPress={() => {
-                  setDownloadResult(null);
-                  dispatch(setAvailableResolutions([]));
-                }}
-                style={styles.actionButton}
-              >
-                New Download
-              </Button>
-              <Button
-                mode="contained"
-                onPress={() => navigation.navigate('TabNavigator')}
-                style={styles.actionButton}
-              >
-                Go to Home
-              </Button>
             </View>
           </View>
-        )}
-      </Surface>
+          
+          {/* Media Info */}
+          <View style={styles.infoContainer}>
+            <Text style={styles.title}>{mediaInfo.title}</Text>
+            
+            {mediaInfo.author && (
+              <Text style={styles.author}>by {mediaInfo.author}</Text>
+            )}
+            
+            {mediaInfo.duration && (
+              <Text style={styles.duration}>
+                Duration: {Math.floor(mediaInfo.duration / 60)}:{(mediaInfo.duration % 60).toString().padStart(2, '0')}
+              </Text>
+            )}
+          </View>
+          
+          <Divider style={styles.divider} />
+          
+          {/* Download Options */}
+          <View style={styles.optionsContainer}>
+            <Text style={styles.sectionTitle}>Download Options</Text>
+            
+            {/* Download Type Selection */}
+            <View style={styles.typeSelectionContainer}>
+              <Text style={styles.optionLabel}>Format:</Text>
+              <View style={styles.typeOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    selectedType === 'video' && styles.selectedTypeButton,
+                  ]}
+                  onPress={() => handleTypeSelect('video')}
+                >
+                  <Ionicons 
+                    name="videocam" 
+                    size={22} 
+                    color={selectedType === 'video' ? 'white' : theme.colors.primary} 
+                  />
+                  <Text 
+                    style={[
+                      styles.typeText,
+                      selectedType === 'video' && styles.selectedTypeText,
+                    ]}
+                  >
+                    Video
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    selectedType === 'audio' && styles.selectedTypeButton,
+                  ]}
+                  onPress={() => handleTypeSelect('audio')}
+                >
+                  <Ionicons 
+                    name="musical-notes" 
+                    size={22} 
+                    color={selectedType === 'audio' ? 'white' : theme.colors.primary} 
+                  />
+                  <Text 
+                    style={[
+                      styles.typeText,
+                      selectedType === 'audio' && styles.selectedTypeText,
+                    ]}
+                  >
+                    Audio Only
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            {/* Quality Selection */}
+            {selectedType === 'video' && availableResolutions.length > 0 && (
+              <View style={styles.qualityContainer}>
+                <Text style={styles.optionLabel}>Quality:</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.qualityScrollView}
+                >
+                  {availableResolutions.map((quality) => (
+                    <Chip
+                      key={quality}
+                      selected={selectedQuality === quality}
+                      onPress={() => setSelectedQuality(quality)}
+                      style={styles.qualityChip}
+                      selectedColor={selectedQuality === quality ? 'white' : undefined}
+                      mode={selectedQuality === quality ? 'flat' : 'outlined'}
+                    >
+                      {quality}
+                    </Chip>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+            
+            {/* Audio Quality Selection */}
+            {selectedType === 'audio' && mediaInfo.audioQualities && (
+              <View style={styles.qualityContainer}>
+                <Text style={styles.optionLabel}>Audio Quality:</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.qualityScrollView}
+                >
+                  {mediaInfo.audioQualities.map((quality: string) => (
+                    <Chip
+                      key={quality}
+                      selected={selectedQuality === quality}
+                      onPress={() => setSelectedQuality(quality)}
+                      style={styles.qualityChip}
+                      selectedColor={selectedQuality === quality ? 'white' : undefined}
+                      mode={selectedQuality === quality ? 'flat' : 'outlined'}
+                    >
+                      {quality}
+                    </Chip>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+          
+          {/* Download Button and Progress */}
+          <View style={styles.downloadContainer}>
+            {isDownloading ? (
+              <View style={styles.progressContainer}>
+                <Text style={styles.progressText}>{Math.round(progress)}%</Text>
+                <View style={styles.progressBarOuter}>
+                  <View 
+                    style={[
+                      styles.progressBarInner, 
+                      { width: `${progress}%`, backgroundColor: theme.colors.primary }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.downloadingText}>Downloading...</Text>
+              </View>
+            ) : (
+              <Button 
+                mode="contained" 
+                onPress={handleDownload}
+                style={styles.downloadButton}
+                icon="download"
+              >
+                Download {selectedType === 'video' ? 'Video' : 'Audio'}
+              </Button>
+            )}
+          </View>
+        </View>
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No media information available</Text>
+        </View>
+      )}
     </ScrollView>
   );
 };
@@ -223,59 +391,190 @@ const DownloadScreen: React.FC<DownloadScreenProps> = ({ navigation, route }) =>
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8f9fa',
   },
-  formContainer: {
-    margin: 16,
-    padding: 16,
-    borderRadius: 8,
-    elevation: 4,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 30,
+    minHeight: 300,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 16,
+  loadingText: {
+    marginTop: 15,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorContainer: {
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 300,
+  },
+  errorText: {
+    marginTop: 10,
+    marginBottom: 20,
+    fontSize: 16,
     textAlign: 'center',
   },
-  optionsContainer: {
-    marginTop: 20,
+  retryButton: {
+    marginBottom: 10,
+    width: 200,
   },
-  typeContainer: {
-    marginVertical: 16,
+  backButton: {
+    width: 200,
+  },
+  contentContainer: {
+    padding: 15,
+  },
+  previewContainer: {
+    position: 'relative',
+    marginBottom: 15,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  thumbnail: {
+    width: '100%',
+    height: 200,
+    backgroundColor: '#e0e0e0',
+  },
+  platformBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  platformText: {
+    marginLeft: 5,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  infoContainer: {
+    marginBottom: 15,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: '#333',
+  },
+  author: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 5,
+  },
+  duration: {
+    fontSize: 14,
+    color: '#888',
+  },
+  divider: {
+    marginVertical: 15,
+  },
+  optionsContainer: {
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 8,
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: '#333',
   },
-  buttonGroup: {
+  typeSelectionContainer: {
+    marginBottom: 20,
+  },
+  optionLabel: {
+    fontSize: 16,
+    marginBottom: 8,
+    color: '#555',
+  },
+  typeOptions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   typeButton: {
-    flex: 1,
-    marginHorizontal: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    flex: 0.48,
+  },
+  selectedTypeButton: {
+    backgroundColor: '#3498db',
+    borderColor: '#3498db',
+  },
+  typeText: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#555',
+  },
+  selectedTypeText: {
+    color: 'white',
+  },
+  qualityContainer: {
+    marginBottom: 15,
+  },
+  qualityScrollView: {
+    flexDirection: 'row',
+  },
+  qualityChip: {
+    marginRight: 8,
+    marginVertical: 4,
+  },
+  downloadContainer: {
+    marginTop: 10,
   },
   downloadButton: {
-    marginTop: 20,
     paddingVertical: 8,
   },
-  resultContainer: {
+  progressContainer: {
     alignItems: 'center',
-    padding: 16,
+    marginTop: 10,
   },
-  successText: {
-    fontSize: 20,
+  progressText: {
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 8,
+    color: '#3498db',
   },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  progressBarOuter: {
     width: '100%',
+    height: 10,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 5,
+    overflow: 'hidden',
   },
-  actionButton: {
-    marginHorizontal: 8,
-    flex: 1,
+  progressBarInner: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  downloadingText: {
+    marginTop: 8,
+    color: '#666',
+  },
+  emptyContainer: {
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 300,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#888',
   },
 });
 

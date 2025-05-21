@@ -1,86 +1,87 @@
 import * as MediaLibrary from 'expo-media-library';
-import { Platform, Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
+import { requestNotificationPermissions } from './notifications';
 
-// Combined function to check and request permissions if needed
+/**
+ * Check and request all necessary permissions
+ * @returns {Promise<boolean>} Whether all permissions were granted
+ */
 export const checkAndRequestPermissions = async (): Promise<boolean> => {
-  // Skip for web platform
-  if (Platform.OS === 'web') {
-    return true;
-  }
-  
   try {
-    // Check media library permissions first
-    const mediaPermission = await MediaLibrary.getPermissionsAsync();
+    const mediaPermission = await requestMediaLibraryPermissions();
+    const notificationPermission = await requestNotificationPermissions();
     
-    if (mediaPermission.granted) {
-      return true;
+    // On web, media permissions might not be supported
+    if (Platform.OS === 'web') {
+      return notificationPermission;
     }
     
-    // If not granted, request permissions
-    const mediaRequestResult = await MediaLibrary.requestPermissionsAsync();
-    
-    if (!mediaRequestResult.granted) {
-      showPermissionExplanation();
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error handling permissions:', error);
-    return false;
-  }
-};
-
-// Check if all required permissions are granted
-export const checkPermissions = async (): Promise<boolean> => {
-  // Skip for web platform
-  if (Platform.OS === 'web') {
-    return true;
-  }
-  
-  try {
-    // Check media library permissions
-    const mediaLibraryPermission = await MediaLibrary.getPermissionsAsync();
-    return mediaLibraryPermission.granted;
+    // Return true only if all permissions are granted
+    return mediaPermission && notificationPermission;
   } catch (error) {
     console.error('Error checking permissions:', error);
     return false;
   }
 };
 
-// Request permissions explicitly
-export const requestPermissions = async (): Promise<boolean> => {
-  // Skip for web platform
+/**
+ * Check if we have media library permissions
+ * @returns {Promise<boolean>} Whether media library permissions are granted
+ */
+export const checkPermissions = async (): Promise<boolean> => {
   if (Platform.OS === 'web') {
-    return true;
+    return true; // Web doesn't need media permissions in the same way
   }
   
   try {
-    // Request media library permissions for saving files
-    const mediaLibraryPermission = await MediaLibrary.requestPermissionsAsync();
+    const { status } = await MediaLibrary.getPermissionsAsync();
+    return status === 'granted';
+  } catch (error) {
+    console.error('Error checking media library permissions:', error);
+    return false;
+  }
+};
+
+/**
+ * Request media library permissions
+ * @returns {Promise<boolean>} Whether media library permissions were granted
+ */
+export const requestMediaLibraryPermissions = async (): Promise<boolean> => {
+  if (Platform.OS === 'web') {
+    return true; // Web doesn't need media permissions in the same way
+  }
+  
+  try {
+    const { status: existingStatus } = await MediaLibrary.getPermissionsAsync();
     
-    if (!mediaLibraryPermission.granted) {
+    // Return early if we already have permission
+    if (existingStatus === 'granted') {
+      return true;
+    }
+    
+    // Request permission
+    const { status } = await MediaLibrary.requestPermissionsAsync();
+    
+    // If permission was denied, show explanation
+    if (status !== 'granted') {
       showPermissionExplanation();
       return false;
     }
     
     return true;
   } catch (error) {
-    console.error('Error requesting permissions:', error);
+    console.error('Error requesting media library permissions:', error);
     return false;
   }
 };
 
-// Show alert explaining the need for permissions
+/**
+ * Show an explanation for why permissions are needed
+ */
 export const showPermissionExplanation = (): void => {
   Alert.alert(
-    "Permission Required",
-    "Storage permission is required to download and save files. Please grant this permission in your device settings to use this app.",
-    [
-      { 
-        text: "OK", 
-        style: "default" 
-      }
-    ]
+    'Permission Required',
+    'We need permission to save media to your device. Please enable this permission in your device settings.',
+    [{ text: 'OK' }]
   );
 };

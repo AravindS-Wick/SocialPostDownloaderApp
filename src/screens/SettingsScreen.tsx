@@ -1,268 +1,244 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Switch, TouchableOpacity, Linking, Alert } from 'react-native';
-import { Text, List, Divider, Button, Surface, useTheme, RadioButton } from 'react-native-paper';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Feather } from '@expo/vector-icons';
-import { checkPermissions, requestPermissions } from '../services/permissions';
-import { setupFolders } from '../services/storage';
+import React, { useState } from 'react';
+import { View, StyleSheet, Text, ScrollView, Switch, Alert } from 'react-native';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '../store';
+import { logout } from '../store/slices/authSlice';
+import { clearHistory } from '../store/slices/historySlice';
+import { List, Divider, Button, Card, IconButton } from 'react-native-paper';
+import { clearActivityLogs } from '../services/logger';
+import { FontAwesome5 } from '@expo/vector-icons';
 
-type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Settings'>;
-
-interface SettingsScreenProps {
-  navigation: SettingsScreenNavigationProp;
-}
-
-const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
-  const theme = useTheme();
+const SettingsScreen = () => {
+  const dispatch = useDispatch();
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+  const { downloads } = useSelector((state: RootState) => state.history);
   
-  // Settings state
-  const [autoDetectPlatform, setAutoDetectPlatform] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [defaultDownloadType, setDefaultDownloadType] = useState('video');
-  const [defaultResolution, setDefaultResolution] = useState('720p');
-  const [hasMediaPermissions, setHasMediaPermissions] = useState(false);
+  const [downloadQualityAuto, setDownloadQualityAuto] = useState(true);
+  const [saveToGallery, setSaveToGallery] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
   
-  // Load settings from storage on mount
-  useEffect(() => {
-    loadSettings();
-    checkMediaPermissions();
-  }, []);
-
-  // Save settings when they change
-  useEffect(() => {
-    saveSettings();
-  }, [autoDetectPlatform, notificationsEnabled, defaultDownloadType, defaultResolution]);
-
-  // Load settings from AsyncStorage
-  const loadSettings = async () => {
-    try {
-      const settings = await AsyncStorage.getItem('app_settings');
-      if (settings) {
-        const parsedSettings = JSON.parse(settings);
-        setAutoDetectPlatform(parsedSettings.autoDetectPlatform ?? true);
-        setNotificationsEnabled(parsedSettings.notificationsEnabled ?? true);
-        setDefaultDownloadType(parsedSettings.defaultDownloadType ?? 'video');
-        setDefaultResolution(parsedSettings.defaultResolution ?? '720p');
-      }
-    } catch (error) {
-      console.error('Failed to load settings:', error);
-    }
+  // Handle clearing download history
+  const handleClearHistory = () => {
+    Alert.alert(
+      'Clear Download History',
+      'Are you sure you want to clear your download history? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          onPress: () => {
+            dispatch(clearHistory());
+            Alert.alert('Success', 'Download history has been cleared');
+          },
+          style: 'destructive',
+        },
+      ]
+    );
   };
-
-  // Save settings to AsyncStorage
-  const saveSettings = async () => {
-    try {
-      const settings = {
-        autoDetectPlatform,
-        notificationsEnabled,
-        defaultDownloadType,
-        defaultResolution,
-      };
-      await AsyncStorage.setItem('app_settings', JSON.stringify(settings));
-    } catch (error) {
-      console.error('Failed to save settings:', error);
-    }
+  
+  // Handle clearing activity logs
+  const handleClearLogs = async () => {
+    Alert.alert(
+      'Clear Activity Logs',
+      'Are you sure you want to clear your activity logs? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          onPress: async () => {
+            await clearActivityLogs();
+            Alert.alert('Success', 'Activity logs have been cleared');
+          },
+          style: 'destructive',
+        },
+      ]
+    );
   };
-
-  // Check media library permissions
-  const checkMediaPermissions = async () => {
-    const hasPermissions = await checkPermissions();
-    setHasMediaPermissions(hasPermissions);
+  
+  // Handle logging out
+  const handleLogout = () => {
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Out',
+          onPress: () => dispatch(logout()),
+        },
+      ]
+    );
   };
-
-  // Request media library permissions
-  const requestMediaPermissions = async () => {
-    const granted = await requestPermissions();
-    setHasMediaPermissions(granted);
-    
-    if (granted) {
-      // If permissions are granted, setup folders
-      await setupFolders();
-      Alert.alert('Success', 'Media library permissions granted. SocialSaver folders are ready.');
-    }
-  };
-
-  // Open app settings
-  const openAppSettings = async () => {
-    await Linking.openSettings();
-  };
-
+  
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Permissions Section */}
-      <Surface style={[styles.section, { backgroundColor: theme.colors.surface }]}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
-          Permissions
-        </Text>
-        
-        <View style={styles.permissionRow}>
-          <View style={styles.permissionInfo}>
-            <Text style={[styles.permissionTitle, { color: theme.colors.text }]}>
-              Media Library Access
-            </Text>
-            <Text style={[styles.permissionDesc, { color: theme.colors.text }]}>
-              Required to save downloaded files
-            </Text>
-          </View>
-          <View style={styles.permissionStatus}>
-            {hasMediaPermissions ? (
-              <Feather name="check-circle" size={24} color="green" />
-            ) : (
-              <Button 
-                mode="outlined" 
-                onPress={requestMediaPermissions}
-                compact
-              >
-                Grant
-              </Button>
-            )}
-          </View>
-        </View>
-        
-        {!hasMediaPermissions && (
-          <Text style={[styles.permissionWarning, { color: theme.colors.error }]}>
-            Media library permission is required for downloads to work properly.
-          </Text>
-        )}
-        
-        <Button 
-          mode="text" 
-          onPress={openAppSettings}
-          style={styles.settingsButton}
-          compact
-        >
-          Open Device Settings
-        </Button>
-      </Surface>
+    <ScrollView style={styles.container}>
+      {/* User Profile */}
+      {isAuthenticated && user && (
+        <Card style={styles.profileCard}>
+          <Card.Content style={styles.profileContent}>
+            <View style={styles.profileAvatar}>
+              {user.profileImage ? (
+                <FontAwesome5 name="user-circle" size={60} color="#3498db" />
+              ) : (
+                <FontAwesome5 name="user-circle" size={60} color="#3498db" />
+              )}
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName}>{user.username}</Text>
+              <Text style={styles.profileEmail}>{user.email}</Text>
+            </View>
+          </Card.Content>
+        </Card>
+      )}
       
-      {/* Download Settings */}
-      <Surface style={[styles.section, { backgroundColor: theme.colors.surface }]}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
-          Download Settings
-        </Text>
-        
-        <View style={styles.settingRow}>
-          <Text style={[styles.settingLabel, { color: theme.colors.text }]}>
-            Auto-detect platform from URL
-          </Text>
-          <Switch
-            value={autoDetectPlatform}
-            onValueChange={setAutoDetectPlatform}
-            trackColor={{ false: '#767577', true: theme.colors.primary }}
-          />
-        </View>
-        
-        <Divider style={styles.divider} />
-        
-        <Text style={[styles.settingGroupLabel, { color: theme.colors.text }]}>
-          Default Download Type
-        </Text>
-        <RadioButton.Group
-          onValueChange={value => setDefaultDownloadType(value)}
-          value={defaultDownloadType}
-        >
-          <View style={styles.radioRow}>
-            <RadioButton.Item
-              label="Video"
-              value="video"
-              color={theme.colors.primary}
-            />
-          </View>
-          <View style={styles.radioRow}>
-            <RadioButton.Item
-              label="Audio Only"
-              value="audio"
-              color={theme.colors.primary}
-            />
-          </View>
-        </RadioButton.Group>
-        
-        <Divider style={styles.divider} />
-        
-        <Text style={[styles.settingGroupLabel, { color: theme.colors.text }]}>
-          Default Video Quality
-        </Text>
-        <RadioButton.Group
-          onValueChange={value => setDefaultResolution(value)}
-          value={defaultResolution}
-        >
-          <View style={styles.radioRow}>
-            <RadioButton.Item
-              label="1080p"
-              value="1080p"
-              color={theme.colors.primary}
-            />
-          </View>
-          <View style={styles.radioRow}>
-            <RadioButton.Item
-              label="720p"
-              value="720p"
-              color={theme.colors.primary}
-            />
-          </View>
-          <View style={styles.radioRow}>
-            <RadioButton.Item
-              label="480p"
-              value="480p"
-              color={theme.colors.primary}
-            />
-          </View>
-          <View style={styles.radioRow}>
-            <RadioButton.Item
-              label="360p"
-              value="360p"
-              color={theme.colors.primary}
-            />
-          </View>
-        </RadioButton.Group>
-      </Surface>
-      
-      {/* Notification Settings */}
-      <Surface style={[styles.section, { backgroundColor: theme.colors.surface }]}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
-          Notifications
-        </Text>
-        
-        <View style={styles.settingRow}>
-          <Text style={[styles.settingLabel, { color: theme.colors.text }]}>
-            Show download notifications
-          </Text>
-          <Switch
-            value={notificationsEnabled}
-            onValueChange={setNotificationsEnabled}
-            trackColor={{ false: '#767577', true: theme.colors.primary }}
-          />
-        </View>
-      </Surface>
-      
-      {/* About */}
-      <Surface style={[styles.section, { backgroundColor: theme.colors.surface }]}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
-          About
-        </Text>
+      {/* App Settings */}
+      <List.Section>
+        <List.Subheader>App Settings</List.Subheader>
         
         <List.Item
-          title="Application Version"
-          description="1.0.0"
-          left={props => <List.Icon {...props} icon="info" />}
+          title="Notifications"
+          description="Receive notifications when downloads complete"
+          left={props => <List.Icon {...props} icon="bell" />}
+          right={props => (
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={setNotificationsEnabled}
+            />
+          )}
         />
         
+        <Divider />
+        
         <List.Item
-          title="Terms of Service"
-          onPress={() => Linking.openURL('https://example.com/terms')}
-          left={props => <List.Icon {...props} icon="file-text" />}
-          right={props => <List.Icon {...props} icon="chevron-right" />}
+          title="Automatic Quality Selection"
+          description="Choose best quality based on your connection"
+          left={props => <List.Icon {...props} icon="auto-fix" />}
+          right={props => (
+            <Switch
+              value={downloadQualityAuto}
+              onValueChange={setDownloadQualityAuto}
+            />
+          )}
         />
+        
+        <Divider />
+        
+        <List.Item
+          title="Save to Gallery"
+          description="Automatically save downloads to your device's gallery"
+          left={props => <List.Icon {...props} icon="image" />}
+          right={props => (
+            <Switch
+              value={saveToGallery}
+              onValueChange={setSaveToGallery}
+            />
+          )}
+        />
+        
+        <Divider />
+        
+        <List.Item
+          title="Dark Mode"
+          description="Switch between light and dark themes"
+          left={props => <List.Icon {...props} icon="theme-light-dark" />}
+          right={props => (
+            <Switch
+              value={darkMode}
+              onValueChange={setDarkMode}
+            />
+          )}
+        />
+      </List.Section>
+      
+      {/* Data Management */}
+      <List.Section>
+        <List.Subheader>Data Management</List.Subheader>
+        
+        <List.Item
+          title="Download History"
+          description={`${downloads.length} downloads saved`}
+          left={props => <List.Icon {...props} icon="history" />}
+          right={props => (
+            <Button 
+              mode="text" 
+              onPress={handleClearHistory}
+              disabled={downloads.length === 0}
+            >
+              Clear
+            </Button>
+          )}
+        />
+        
+        <Divider />
+        
+        <List.Item
+          title="Activity Logs"
+          description="Clear your activity data"
+          left={props => <List.Icon {...props} icon="clipboard-list" />}
+          right={props => (
+            <Button 
+              mode="text" 
+              onPress={handleClearLogs}
+            >
+              Clear
+            </Button>
+          )}
+        />
+      </List.Section>
+      
+      {/* About & Help */}
+      <List.Section>
+        <List.Subheader>About & Help</List.Subheader>
+        
+        <List.Item
+          title="About This App"
+          description="Version 1.0.0"
+          left={props => <List.Icon {...props} icon="information" />}
+        />
+        
+        <Divider />
         
         <List.Item
           title="Privacy Policy"
-          onPress={() => Linking.openURL('https://example.com/privacy')}
-          left={props => <List.Icon {...props} icon="shield" />}
-          right={props => <List.Icon {...props} icon="chevron-right" />}
+          description="View our privacy policy"
+          left={props => <List.Icon {...props} icon="shield-account" />}
         />
-      </Surface>
+        
+        <Divider />
+        
+        <List.Item
+          title="Terms of Service"
+          description="View our terms of service"
+          left={props => <List.Icon {...props} icon="file-document" />}
+        />
+        
+        <Divider />
+        
+        <List.Item
+          title="Help & Support"
+          description="Get help using the app"
+          left={props => <List.Icon {...props} icon="help-circle" />}
+        />
+      </List.Section>
+      
+      {/* Account Actions */}
+      {isAuthenticated && (
+        <View style={styles.accountActions}>
+          <Button 
+            mode="outlined" 
+            onPress={handleLogout}
+            style={styles.logoutButton}
+            icon="logout-variant"
+          >
+            Log Out
+          </Button>
+        </View>
+      )}
+      
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>Social Media Downloader © 2025</Text>
+      </View>
     </ScrollView>
   );
 };
@@ -270,65 +246,48 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    backgroundColor: '#f8f9fa',
   },
-  section: {
-    marginBottom: 16,
-    borderRadius: 8,
-    padding: 16,
+  profileCard: {
+    margin: 16,
     elevation: 2,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  permissionRow: {
+  profileContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  permissionInfo: {
+  profileAvatar: {
+    marginRight: 16,
+  },
+  profileInfo: {
     flex: 1,
   },
-  permissionTitle: {
-    fontSize: 16,
-    fontWeight: '500',
+  profileName: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
-  permissionDesc: {
+  profileEmail: {
     fontSize: 14,
+    color: '#666',
+    marginTop: 4,
   },
-  permissionStatus: {
-    marginLeft: 12,
-  },
-  permissionWarning: {
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  settingsButton: {
-    alignSelf: 'flex-start',
-    marginTop: 8,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  accountActions: {
+    padding: 16,
     alignItems: 'center',
-    paddingVertical: 12,
   },
-  settingLabel: {
-    fontSize: 16,
+  logoutButton: {
+    width: '80%',
+    marginTop: 10,
+    borderColor: '#e74c3c',
+    borderWidth: 1,
   },
-  divider: {
-    marginVertical: 12,
+  footer: {
+    padding: 20,
+    alignItems: 'center',
   },
-  settingGroupLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  radioRow: {
-    marginVertical: 0,
+  footerText: {
+    color: '#999',
+    fontSize: 12,
   },
 });
 

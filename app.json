@@ -1,59 +1,37 @@
 {
   "expo": {
-    "name": "SocialSaver",
-    "slug": "socialsaver",
+    "name": "Social Media Downloader",
+    "slug": "social-media-downloader",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#3498db"
     },
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.socialsaver.app",
-      "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "SocialSaver needs access to your photo library to save downloaded videos, photos, and audio files.",
-        "NSPhotoLibraryAddUsageDescription": "SocialSaver needs access to your photo library to save downloaded videos, photos, and audio files."
-      }
+      "bundleIdentifier": "com.socialmediadownloader.app"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#3498db"
       },
-      "package": "com.socialsaver.app",
+      "package": "com.socialmediadownloader.app",
       "permissions": [
+        "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
-        "READ_EXTERNAL_STORAGE"
+        "CAMERA"
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      [
-        "expo-media-library",
-        {
-          "photosPermission": "SocialSaver needs access to your photos to save downloaded content.",
-          "savePhotosPermission": "SocialSaver needs access to your photos to save downloaded content.",
-          "isAccessMediaLocationEnabled": true
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#ffffff"
-        }
-      ]
-    ]
+      "favicon": "./assets/icon.png"
+    }
   }
 }
