@@ -16,14 +16,9 @@ export interface AuthState {
 }
 
 const initialState: AuthState = {
-  isAuthenticated: true, // Set to true to bypass login for testing
+  isAuthenticated: false, // Set to false to enable login functionality
   token: null,
-  user: {
-    id: '1',
-    username: 'testuser',
-    email: 'test@example.com',
-    profileImage: 'https://i.pravatar.cc/150?img=1'
-  },
+  user: null,
   error: null,
   loading: false,
 };

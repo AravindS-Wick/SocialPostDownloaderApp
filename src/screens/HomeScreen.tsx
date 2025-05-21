@@ -19,6 +19,7 @@ import { Ionicons, FontAwesome5, MaterialIcons, MaterialCommunityIcons } from '@
 import { Button, IconButton, useTheme, Card, Avatar, ProgressBar, Chip, Divider } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { checkAndRequestPermissions } from '../services/permissions';
+import { loginSuccess, logout } from '../store/slices/authSlice';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
