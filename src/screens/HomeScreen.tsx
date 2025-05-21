@@ -298,10 +298,52 @@ export default function HomeScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <Text style={styles.title}>Social Media Downloader</Text>
-        <Text style={styles.subtitle}>
-          Download videos, photos, and music from all your favorite platforms
-        </Text>
+        <View style={styles.titleAndAuthContainer}>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.title}>Social Media Downloader</Text>
+            <Text style={styles.subtitle}>
+              Download videos, photos, and music from all your favorite platforms
+            </Text>
+          </View>
+          <View style={styles.authButtonsContainer}>
+            {!user ? (
+              <View style={styles.authButtons}>
+                <TouchableOpacity 
+                  style={styles.loginButton}
+                  onPress={() => {
+                    dispatch(loginSuccess({
+                      token: 'demo-token-123',
+                      user: {
+                        id: '1',
+                        username: 'demouser',
+                        email: 'demo@example.com',
+                        profileImage: 'https://i.pravatar.cc/150?img=1'
+                      }
+                    }));
+                  }}
+                >
+                  <Text style={styles.loginButtonText}>Login</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.signupButton}
+                  onPress={() => {
+                    Alert.alert('Sign Up', 'Account creation form would appear here.');
+                  }}
+                >
+                  <Text style={styles.signupButtonText}>Sign Up</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+                <Avatar.Image 
+                  size={36} 
+                  source={{ uri: 'https://i.pravatar.cc/150?img=1' }} 
+                  style={styles.headerAvatar}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
       </LinearGradient>
 
       {/* Main Download Card */}
