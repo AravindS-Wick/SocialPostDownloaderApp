@@ -1,3 +1,11 @@
+node_modules
+android
+.expo
+server
+ios
+.vscode
+.env
+.qodo
 # Dependencies
 node_modules/
 npm-debug.log*
@@ -125,4 +133,3 @@ web-build/
 # React Native
 android/
 ios/
-
