@@ -1,0 +1,44 @@
+# Server
+PORT=2500
+
+# YouTube Data API (for dynamic related content)
+# YOUTUBE_API_KEY=your_youtube_data_api_key_here
+
+# # Twitter API (for fetching related tweets or private downloads)
+# TWITTER_BEARER_TOKEN=your_twitter_bearer_token_here
+# # For advanced Twitter API usage (optional)
+# TWITTER_API_KEY=your_twitter_api_key_here
+# TWITTER_API_SECRET=your_twitter_api_secret_here
+# TWITTER_ACCESS_TOKEN=your_twitter_access_token_here
+# TWITTER_ACCESS_TOKEN_SECRET=your_twitter_access_token_secret_here
+
+# # Instagram API (for private downloads or related content)
+# IG_USERNAME=your_instagram_username
+# IG_PASSWORD=your_instagram_password
+
+# MongoDB (if you want to use a real database)
+# MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/dbname?retryWrites=true&w=majority
+
+# JWT secret (for secure user authentication, if you add JWT)
+# JWT_SECRET=your_super_secret_jwt_key
+
+   # Instagram
+   INSTAGRAM_CLIENT_ID=your-instagram-client-id
+   INSTAGRAM_CLIENT_SECRET=your-instagram-client-secret
+   INSTAGRAM_REDIRECT_URI=http://localhost:5173/auth/callback/instagram
+
+   # YouTube
+   YOUTUBE_CLIENT_ID=your-youtube-client-id
+   YOUTUBE_CLIENT_SECRET=your-youtube-client-secret
+   YOUTUBE_REDIRECT_URI=http://localhost:5173/auth/callback/youtube
+
+   # Twitter
+   TWITTER_CLIENT_ID=your-twitter-client-id
+   TWITTER_CLIENT_SECRET=your-twitter-client-secret
+   TWITTER_REDIRECT_URI=http://localhost:5173/auth/callback/twitter
+
+   # TikTok
+   TIKTOK_CLIENT_ID=your-tiktok-client-id
+   TIKTOK_CLIENT_SECRET=your-tiktok-client-secret
+   TIKTOK_REDIRECT_URI=http://localhost:5173/auth/callback/tiktok
+
