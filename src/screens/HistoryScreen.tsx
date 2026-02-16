@@ -10,6 +10,8 @@ import { removeDownloadFromHistory, clearHistory } from '../store/slices/history
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { DownloadHistoryItem } from '../store/slices/historySlice';
 import ResponsiveContainer from '../components/ResponsiveContainer';
+// TODO: Ad display - backlog
+// import AdBanner from '../components/ads/AdBanner';
 
 const HistoryScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -189,6 +191,8 @@ const HistoryScreen = () => {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ResponsiveContainer>
+        {/* TODO: Ad display - backlog */}
+        {/* <AdBanner placement="history_top" /> */}
         <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]}>
           <Searchbar
             placeholder="Search downloads..."

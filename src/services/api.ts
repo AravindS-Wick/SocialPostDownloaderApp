@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../utils/constants';
+import axiosInstance from './axiosInstance';
 
 const API_REQUEST_TIMEOUT_MS = 60000;
 const DOWNLOAD_TIMEOUT_MS = 180000;
@@ -46,25 +47,16 @@ export const checkApiAvailability = async (): Promise<boolean> => {
   }
 };
 
-// Download API
+// Download API — uses axiosInstance for auth headers (token attached automatically when logged in)
 export const downloadAPI = {
   getMediaInfo: async (url: string) => {
     try {
       const directUrl = resolveEndpointUrl(endpoints.mediaInfo);
-      const controller = new AbortController();
-      const timeoutHandle = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
-      try {
-        const response = await axios.get(directUrl, {
-          params: { url },
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutHandle);
-        return response.data;
-      } catch (err) {
-        clearTimeout(timeoutHandle);
-        throw err;
-      }
+      const response = await axiosInstance.get(directUrl, {
+        params: { url },
+        timeout: API_REQUEST_TIMEOUT_MS,
+      });
+      return response.data;
     } catch (error: any) {
       if (error.response) {
         const errorMsg = error.response.data?.error || error.response.data?.message || `Server error (${error.response.status})`;
@@ -93,8 +85,7 @@ export const downloadAPI = {
 
     try {
       const directUrl = resolveEndpointUrl(endpoints.download);
-      const response = await axios.post(directUrl, payload, {
-        headers: { 'Content-Type': 'application/json' },
+      const response = await axiosInstance.post(directUrl, payload, {
         timeout: DOWNLOAD_TIMEOUT_MS,
       });
       return response.data;
@@ -108,8 +99,7 @@ export const downloadAPI = {
           useAutoFormat: true,
         };
         const directUrl = resolveEndpointUrl(endpoints.download);
-        const response = await axios.post(directUrl, autoPayload, {
-          headers: { 'Content-Type': 'application/json' },
+        const response = await axiosInstance.post(directUrl, autoPayload, {
           timeout: DOWNLOAD_TIMEOUT_MS,
         });
         return response.data;
@@ -130,8 +120,7 @@ export const downloadAPI = {
   getDownloadStatus: async (downloadId: string) => {
     try {
       const directUrl = `${resolveEndpointUrl(endpoints.status)}${downloadId}`;
-      const response = await axios.get(directUrl, {
-        headers: { 'Content-Type': 'application/json' },
+      const response = await axiosInstance.get(directUrl, {
         timeout: DOWNLOAD_TIMEOUT_MS,
       });
       return response.data;
@@ -140,6 +129,31 @@ export const downloadAPI = {
         throw new Error(error.response.data?.error || `Status check failed (${error.response.status})`);
       }
       throw error;
+    }
+  },
+
+  getChannelPosts: async (url: string, page: number = 1) => {
+    try {
+      const directUrl = resolveEndpointUrl('/api/channel-posts');
+      const response = await axiosInstance.post(directUrl, { url, page }, {
+        timeout: API_REQUEST_TIMEOUT_MS,
+      });
+      return response.data;
+    } catch (error: any) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || `Failed to fetch channel posts (${error.response.status})`);
+      }
+      throw error;
+    }
+  },
+
+  getRemainingDownloads: async () => {
+    try {
+      const directUrl = resolveEndpointUrl('/api/downloads/remaining');
+      const response = await axiosInstance.get(directUrl, { timeout: 5000 });
+      return response.data;
+    } catch {
+      return { freemiumEnabled: false, total: 10, used: 0, remaining: 10 };
     }
   },
 };

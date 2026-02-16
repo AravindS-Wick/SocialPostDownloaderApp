@@ -22,6 +22,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { checkAndRequestPermissions } from '../services/permissions';
 import { addDownloadToHistory, DownloadHistoryItem } from '../store/slices/historySlice';
 import ResponsiveContainer from '../components/ResponsiveContainer';
+// TODO: Ad display - backlog
+// import AdBanner from '../components/ads/AdBanner';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -605,6 +607,9 @@ export default function HomeScreen() {
           ))}
         </View>
       </View>
+
+      {/* TODO: Ad display - backlog */}
+      {/* <AdBanner placement="home_bottom" /> */}
 
       <View style={[styles.footerContainer, { backgroundColor: theme.colors.background }]}>
         <Text style={[styles.footerText, { color: theme.colors.onSurfaceVariant }]}>Social Media Downloader v1.0.0</Text>

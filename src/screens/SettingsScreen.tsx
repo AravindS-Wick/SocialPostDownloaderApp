@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView, Switch, Alert, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, Switch, Alert, StyleSheet, TextInput as RNTextInput } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { logout } from '../store/slices/authSlice';
@@ -8,7 +8,8 @@ import {
   toggleNotifications,
   setQualityPreference,
   toggleSaveToGallery,
-  toggleDarkMode
+  toggleDarkMode,
+  setDownloadPath
 } from '../store/slices/settingsSlice';
 import type { QualityPreference } from '../store/slices/settingsSlice';
 import { List, Divider, Button, Card, useTheme, RadioButton } from 'react-native-paper';
@@ -18,6 +19,50 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import ResponsiveContainer from '../components/ResponsiveContainer';
+
+const PRESET_PATHS = ['SocialSaver', 'Downloads', 'MediaFiles'];
+
+const DownloadPathPicker = ({ currentPath, onPathChange, theme }: {
+  currentPath: string;
+  onPathChange: (path: string) => void;
+  theme: any;
+}) => {
+  const isCustom = !PRESET_PATHS.includes(currentPath);
+  const [showCustomInput, setShowCustomInput] = useState(isCustom);
+
+  return (
+    <View style={styles.qualityOptions}>
+      <RadioButton.Group
+        onValueChange={(value) => {
+          if (value === '__custom__') {
+            setShowCustomInput(true);
+            if (!isCustom) onPathChange('');
+          } else {
+            setShowCustomInput(false);
+            onPathChange(value);
+          }
+        }}
+        value={showCustomInput ? '__custom__' : currentPath}
+      >
+        {PRESET_PATHS.map((p) => (
+          <RadioButton.Item key={p} label={p} value={p} style={styles.radioItem} />
+        ))}
+        <RadioButton.Item label="Custom..." value="__custom__" style={styles.radioItem} />
+      </RadioButton.Group>
+      {showCustomInput && (
+        <RNTextInput
+          style={[styles.customPathInput, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
+          value={currentPath}
+          onChangeText={onPathChange}
+          placeholder="Enter folder name"
+          placeholderTextColor={theme.colors.onSurfaceVariant}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      )}
+    </View>
+  );
+};
 
 const SettingsScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -180,8 +225,20 @@ const SettingsScreen = () => {
             />
           )}
         />
+        <Divider />
+
+        <List.Item
+          title="Download Folder"
+          description={`Saves to: ${settings.downloadPath}/Videos, Audio, Images`}
+          left={props => <List.Icon {...props} icon="folder" />}
+        />
+        <DownloadPathPicker
+          currentPath={settings.downloadPath}
+          onPathChange={(p) => dispatch(setDownloadPath(p))}
+          theme={theme}
+        />
       </List.Section>
-      
+
       {/* Data Management */}
       <List.Section>
         <List.Subheader>Data Management</List.Subheader>
@@ -325,6 +382,16 @@ const styles = StyleSheet.create({
   },
   radioItem: {
     paddingVertical: 2,
+  },
+  customPathInput: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    fontSize: 14,
   },
   footer: {
     padding: 20,

@@ -13,6 +13,8 @@ import DownloadService, { DownloadOptions, DownloadProgress } from '../services/
 import { detectPlatformFromUrl } from '../services/api';
 import { v4 as uuidv4 } from 'uuid';
 import { logDownloadAttempt, logDownloadComplete } from '../services/logger';
+// TODO: Ad display - backlog
+// import AdInterstitial from '../components/ads/AdInterstitial';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 
 type DownloadScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Download'>;
@@ -340,6 +342,8 @@ const DownloadScreen: React.FC<DownloadScreenProps> = ({ navigation, route }) =>
           <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>No media information available</Text>
         </View>
       )}
+      {/* TODO: Ad display - backlog */}
+      {/* <AdInterstitial trigger="post_download" /> */}
       </ResponsiveContainer>
     </ScrollView>
   );

@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import HomeScreen from '../screens/HomeScreen';
 import DownloadScreen from '../screens/DownloadScreen';
 import HistoryScreen from '../screens/HistoryScreen';
+import BatchScreen from '../screens/BatchScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AuthScreen from '../screens/AuthScreen';
 
@@ -20,6 +21,7 @@ export type RootStackParamList = {
 
 export type MainTabParamList = {
   Home: { redownloadUrl?: string; redownloadPlatform?: string; redownloadType?: string } | undefined;
+  Batch: undefined;
   History: undefined;
   Settings: undefined;
 };
@@ -36,6 +38,8 @@ function MainTabNavigator() {
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Batch') {
+            iconName = focused ? 'layers' : 'layers-outline';
           } else if (route.name === 'History') {
             iconName = focused ? 'time' : 'time-outline';
           } else if (route.name === 'Settings') {
@@ -47,6 +51,7 @@ function MainTabNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Batch" component={BatchScreen} />
       <Tab.Screen name="History" component={HistoryScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>

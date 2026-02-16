@@ -8,6 +8,7 @@ export interface SettingsState {
   qualityPreference: QualityPreference;
   saveToGallery: boolean;
   darkMode: boolean;
+  downloadPath: string;
 }
 
 const initialState: SettingsState = {
@@ -16,6 +17,7 @@ const initialState: SettingsState = {
   qualityPreference: 'best',
   saveToGallery: true,
   darkMode: false,
+  downloadPath: 'SocialSaver',
 };
 
 const settingsSlice = createSlice({
@@ -39,6 +41,10 @@ const settingsSlice = createSlice({
     toggleDarkMode: (state) => {
       state.darkMode = !state.darkMode;
     },
+    setDownloadPath: (state, action: PayloadAction<string>) => {
+      const sanitized = action.payload.replace(/[/\\:*?"<>|]/g, '').trim();
+      state.downloadPath = sanitized || 'SocialSaver';
+    },
     updateSettings: (state, action: PayloadAction<Partial<SettingsState>>) => {
       Object.assign(state, action.payload);
     },
@@ -52,6 +58,7 @@ export const {
   setQualityPreference,
   toggleSaveToGallery,
   toggleDarkMode,
+  setDownloadPath,
   updateSettings,
   resetSettings
 } = settingsSlice.actions;

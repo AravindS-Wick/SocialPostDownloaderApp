@@ -5,6 +5,7 @@ import { downloadAPI, mockAPI } from './api';
 import { sendNotification } from './notifications';
 import { setupFolders } from './storage';
 import { API_BASE_URL } from '../utils/constants';
+import { store } from '../store';
 
 export interface DownloadOptions {
   url: string;
@@ -114,7 +115,8 @@ class DownloadService {
   private async getAppSpecificDirectoryPath(type: 'video' | 'audio' | 'image'): Promise<string> {
     const baseDir = FileSystem.documentDirectory;
     const folderName = type === 'video' ? 'Videos' : type === 'audio' ? 'Audio' : 'Images';
-    const targetDir = `${baseDir}SocialSaver/${folderName}/`;
+    const downloadPath = store.getState().settings.downloadPath || 'SocialSaver';
+    const targetDir = `${baseDir}${downloadPath}/${folderName}/`;
     await FileSystem.makeDirectoryAsync(targetDir, { intermediates: true });
     return targetDir;
   }
@@ -173,7 +175,8 @@ class DownloadService {
       } else {
         // For iOS, use the album approach
         const asset = await MediaLibrary.createAssetAsync(filePath);
-        const albumName = `SocialSaver_${type.charAt(0).toUpperCase() + type.slice(1)}`;
+        const downloadPath = store.getState().settings.downloadPath || 'SocialSaver';
+        const albumName = `${downloadPath}_${type.charAt(0).toUpperCase() + type.slice(1)}`;
         let album = await MediaLibrary.getAlbumAsync(albumName);
         if (!album) {
           album = await MediaLibrary.createAlbumAsync(albumName, asset, false);
@@ -493,11 +496,12 @@ class DownloadService {
   private getSavedLocationDescription(type: 'video' | 'audio' | 'image'): string {
     const hasPermissions = DownloadService.permissionStatus === 'granted';
     const location = type === 'video' ? 'Videos' : type === 'audio' ? 'Audio' : 'Images';
-    
+    const downloadPath = store.getState().settings.downloadPath || 'SocialSaver';
+
     if (hasPermissions) {
-      return `SocialSaver/${location} + Gallery`;
+      return `${downloadPath}/${location} + Gallery`;
     } else {
-      return `SocialSaver/${location}`;
+      return `${downloadPath}/${location}`;
     }
   }
 
