@@ -1,9 +1,12 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
+export type UserRole = 'admin' | 'owner' | 'tester' | 'user';
+
 interface User {
   id: string;
   username: string;
   email: string;
+  role: UserRole;
   profileImage?: string;
 }
 

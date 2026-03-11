@@ -9,6 +9,7 @@ export interface SettingsState {
   saveToGallery: boolean;
   darkMode: boolean;
   downloadPath: string;
+  safFolderUri: string | null; // Android SAF folder URI — persisted after first pick
 }
 
 const initialState: SettingsState = {
@@ -18,6 +19,7 @@ const initialState: SettingsState = {
   saveToGallery: true,
   darkMode: false,
   downloadPath: 'SocialSaver',
+  safFolderUri: null,
 };
 
 const settingsSlice = createSlice({
@@ -48,6 +50,9 @@ const settingsSlice = createSlice({
     updateSettings: (state, action: PayloadAction<Partial<SettingsState>>) => {
       Object.assign(state, action.payload);
     },
+    setSafFolderUri: (state, action: PayloadAction<string | null>) => {
+      state.safFolderUri = action.payload;
+    },
     resetSettings: () => initialState,
   },
 });
@@ -59,6 +64,7 @@ export const {
   toggleSaveToGallery,
   toggleDarkMode,
   setDownloadPath,
+  setSafFolderUri,
   updateSettings,
   resetSettings
 } = settingsSlice.actions;

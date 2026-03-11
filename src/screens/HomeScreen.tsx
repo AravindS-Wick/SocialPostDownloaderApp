@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,6 +9,7 @@ import {
   Image,
   Platform,
   Alert,
+  AppState,
   Clipboard,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -93,6 +94,57 @@ export default function HomeScreen() {
     checkPermissions();
   }, []);
 
+  // Auto-detect social media URLs from clipboard when app comes to foreground
+  const lastClipboardUrl = useRef<string | null>(null);
+  useEffect(() => {
+    const socialUrlPattern = /https?:\/\/(www\.)?(youtube\.com|youtu\.be|instagram\.com|twitter\.com|x\.com)\//i;
+    // tiktok\.com|facebook\.com|fb\.watch — coming soon
+
+    const checkClipboardForUrl = async () => {
+      try {
+        // Don't prompt if the input is already filled (e.g. share intent just set it)
+        if (url) return;
+        const clipText = await Clipboard.getString();
+        if (!clipText || clipText === lastClipboardUrl.current) return;
+        const match = clipText.match(socialUrlPattern);
+        if (match) {
+          lastClipboardUrl.current = clipText;
+          Alert.alert(
+            'URL Detected',
+            'A social media link was found in your clipboard. Use it?',
+            [
+              { text: 'No', style: 'cancel' },
+              {
+                text: 'Paste',
+                onPress: () => {
+                  const urlMatch = clipText.match(/https?:\/\/[^\s]+/i);
+                  if (urlMatch) {
+                    setUrl(urlMatch[0]);
+                    detectPlatform(urlMatch[0]);
+                  }
+                },
+              },
+            ]
+          );
+        }
+      } catch {
+        // Clipboard access may fail silently
+      }
+    };
+
+    // Check on mount
+    checkClipboardForUrl();
+
+    // Check when app comes back to foreground
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        checkClipboardForUrl();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [url]);
+
   const handlePasteFromClipboard = async () => {
     try {
       const clipboardText = await Clipboard.getString();
@@ -120,10 +172,10 @@ export default function HomeScreen() {
       setPlatform('instagram');
     } else if (inputUrl.includes('twitter') || inputUrl.includes('x.com')) {
       setPlatform('twitter');
-    } else if (inputUrl.includes('tiktok')) {
-      setPlatform('tiktok');
-    } else if (inputUrl.includes('facebook')) {
-      setPlatform('facebook');
+    // } else if (inputUrl.includes('tiktok')) {  // TikTok: coming soon
+    //   setPlatform('tiktok');
+    // } else if (inputUrl.includes('facebook')) {  // Facebook: coming soon
+    //   setPlatform('facebook');
     } else {
       setPlatform('auto-detect');
     }
@@ -235,6 +287,13 @@ export default function HomeScreen() {
       setAvailableQualities(fetchedQualities);
       if (fetchedQualities.length > 0 && !fetchedQualities.includes(quality)) {
         setQuality(fetchedQualities[0]);
+      }
+
+      // Auto-detect image-only posts (e.g. Instagram photos): no video or audio qualities
+      const hasNoVideoQualities = !mediaInfo?.qualities?.length && !mediaInfo?.formats?.length;
+      const hasNoAudioQualities = !mediaInfo?.audioQualities?.length;
+      if (hasNoVideoQualities && hasNoAudioQualities) {
+        setDownloadType('image');
       }
 
       setShowPreview(true);
@@ -425,8 +484,8 @@ export default function HomeScreen() {
                 { key: 'youtube', label: 'YouTube' },
                 { key: 'instagram', label: 'Instagram' },
                 { key: 'twitter', label: 'Twitter' },
-                { key: 'tiktok', label: 'TikTok' },
-                { key: 'facebook', label: 'Facebook' },
+                // { key: 'tiktok', label: 'TikTok' },   // coming soon
+                // { key: 'facebook', label: 'Facebook' }, // coming soon
               ].map((p) => (
                 <TouchableOpacity
                   key={p.key}
@@ -447,7 +506,7 @@ export default function HomeScreen() {
               {[
                 { key: 'video', label: 'Video', icon: 'video' },
                 { key: 'audio', label: 'Audio', icon: 'music' },
-                { key: 'photo', label: 'Photo', icon: 'image' },
+                { key: 'image', label: 'Photo', icon: 'image' },
               ].map((t, i) => (
                 <TouchableOpacity
                   key={t.key}
@@ -599,7 +658,7 @@ export default function HomeScreen() {
           <Text style={styles.sectionHeaderText}>Supported Platforms</Text>
         </View>
         <View style={styles.featuresGrid}>
-          {['youtube', 'instagram', 'twitter', 'tiktok', 'facebook'].map((p) => (
+          {['youtube', 'instagram', 'twitter' /* 'tiktok', 'facebook' — coming soon */].map((p) => (
             <View key={p} style={styles.featureItem}>
               {getPlatformIcon(p, 32)}
               <Text style={[styles.featureText, { color: theme.colors.onSurfaceVariant }]}>{p.charAt(0).toUpperCase() + p.slice(1)}</Text>

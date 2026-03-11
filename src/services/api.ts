@@ -250,4 +250,28 @@ export const mockAPI = {
   },
 };
 
+// ── Admin API ────────────────────────────────────────────────────────────
+export const adminAPI = {
+  getUsers: () => axiosInstance.get('/api/admin/users'),
+  blockUser: (email: string, blocked: boolean) =>
+    axiosInstance.post(`/api/admin/users/${encodeURIComponent(email)}/block`, { blocked }),
+  removeUser: (email: string) =>
+    axiosInstance.delete(`/api/admin/users/${encodeURIComponent(email)}`),
+  getDbStats: () => axiosInstance.get('/api/admin/db-stats'),
+  clearDb: () => axiosInstance.delete('/api/admin/db/clear'),
+  restart: () => axiosInstance.post('/api/admin/restart'),
+  approveOwner: (email: string) =>
+    axiosInstance.post(`/api/admin/db/approve-owner/${encodeURIComponent(email)}`),
+};
+
+// ── Bug Report API ───────────────────────────────────────────────────────
+export const bugAPI = {
+  submit: (errorText: string, imageBase64?: string) =>
+    axiosInstance.post('/api/bugs', { errorText, imageBase64 }),
+  list: () => axiosInstance.get('/api/bugs'),
+  getReport: (id: number) => axiosInstance.get(`/api/bugs/${id}`),
+  updateStatus: (id: number, status: string) =>
+    axiosInstance.patch(`/api/bugs/${id}`, { status }),
+};
+
 export default apiClient;
