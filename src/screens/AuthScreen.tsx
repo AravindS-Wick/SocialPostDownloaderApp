@@ -37,6 +37,7 @@ export default function AuthScreen() {
             id: response.user?.id || email,
             username: response.user?.name || email.split('@')[0],
             email: response.user?.email || email,
+            role: response.user?.role || 'user',
           },
         }));
         navigation.goBack();
@@ -82,6 +83,7 @@ export default function AuthScreen() {
               id: loginResponse.user?.id || email,
               username: loginResponse.user?.name || email.split('@')[0],
               email: loginResponse.user?.email || email,
+              role: loginResponse.user?.role || 'user',
             },
           }));
           navigation.goBack();
