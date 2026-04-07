@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { logActivity } from './api';
 import { v4 as uuidv4 } from 'uuid';
 
 // Constants
@@ -27,13 +26,6 @@ export const logDownloadAttempt = async (
   };
   
   await saveLog(logEntry);
-  
-  // Also send to API if available
-  try {
-    await logActivity(logEntry);
-  } catch (error) {
-    console.log('Error sending log to API:', error);
-  }
 };
 
 /**
@@ -60,13 +52,6 @@ export const logDownloadComplete = async (
   };
   
   await saveLog(logEntry);
-  
-  // Also send to API if available
-  try {
-    await logActivity(logEntry);
-  } catch (error) {
-    console.log('Error sending log to API:', error);
-  }
 };
 
 /**
@@ -87,13 +72,6 @@ export const logDownloadConsent = async (
   };
   
   await saveLog(logEntry);
-  
-  // Also send to API if available
-  try {
-    await logActivity(logEntry);
-  } catch (error) {
-    console.log('Error sending log to API:', error);
-  }
 };
 
 /**

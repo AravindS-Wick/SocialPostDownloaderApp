@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Switch, Alert, StyleSheet, TextInput as RNTextI
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { logout } from '../store/slices/authSlice';
+import { userAPI } from '../services/api';
 import { clearHistory } from '../store/slices/historySlice';
 import {
   toggleNotifications,
@@ -124,7 +125,34 @@ const SettingsScreen = () => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Log Out',
-          onPress: () => dispatch(logout()),
+          onPress: async () => {
+            try { await userAPI.logout(); } catch { /* proceed with local logout */ }
+            dispatch(logout());
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRestartApi = () => {
+    Alert.alert(
+      'Restart API Server',
+      'This will restart the backend. The app will reconnect automatically in a few seconds.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restart',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { adminAPI } = await import('../services/api');
+              await adminAPI.restart();
+              Alert.alert('Restart Initiated', 'The API server is restarting. Please wait a moment.');
+            } catch (error: any) {
+              const msg = error?.response?.data?.error || error?.message || 'Failed to restart API';
+              Alert.alert('Error', msg);
+            }
+          },
         },
       ]
     );
@@ -163,7 +191,7 @@ const SettingsScreen = () => {
           right={() => (
             <Switch
               value={settings.notificationsEnabled}
-              onValueChange={() => dispatch(toggleNotifications())}
+              onValueChange={() => { dispatch(toggleNotifications()); }}
             />
           )}
         />
@@ -207,7 +235,7 @@ const SettingsScreen = () => {
           right={() => (
             <Switch
               value={settings.saveToGallery}
-              onValueChange={() => dispatch(toggleSaveToGallery())}
+              onValueChange={() => { dispatch(toggleSaveToGallery()); }}
             />
           )}
         />
@@ -221,7 +249,7 @@ const SettingsScreen = () => {
           right={() => (
             <Switch
               value={settings.darkMode}
-              onValueChange={() => dispatch(toggleDarkMode())}
+              onValueChange={() => { dispatch(toggleDarkMode()); }}
             />
           )}
         />
@@ -310,6 +338,32 @@ const SettingsScreen = () => {
         />
       </List.Section>
       
+      {/* Security */}
+      {isAuthenticated && (
+        <List.Section>
+          <List.Subheader>Security</List.Subheader>
+          <List.Item
+            title="Change Password"
+            description="Update your password"
+            left={props => <List.Icon {...props} icon="lock-reset" />}
+            onPress={() => navigation.navigate('ChangePassword')}
+          />
+        </List.Section>
+      )}
+
+      {/* Admin: API Controls */}
+      {isAuthenticated && user?.role === 'admin' && (
+        <List.Section>
+          <List.Subheader>API Controls</List.Subheader>
+          <List.Item
+            title="Restart API Server"
+            description="Force-restart the backend process"
+            left={props => <List.Icon {...props} icon="restart" color={theme.colors.error} />}
+            onPress={handleRestartApi}
+          />
+        </List.Section>
+      )}
+
       {/* Account Actions */}
       <View style={styles.accountActions}>
         {isAuthenticated ? (

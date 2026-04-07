@@ -13,7 +13,8 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useSelector } from 'react-redux';
-import * as ImagePicker from 'expo-image-picker';
+// expo-image-picker uses a native module — lazy-import to avoid crash on Expo Go startup
+// import * as ImagePicker from 'expo-image-picker';
 import type { RootState } from '../store';
 import { bugAPI } from '../services/api';
 
@@ -77,6 +78,7 @@ export default function BugReportScreen() {
   }
 
   async function pickImage() {
+    const ImagePicker = await import('expo-image-picker');
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       Alert.alert('Permission needed', 'Allow photo library access to attach screenshots');

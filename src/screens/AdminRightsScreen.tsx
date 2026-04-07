@@ -12,8 +12,9 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../store';
+import { loginSuccess } from '../store/slices/authSlice';
 import { adminAPI } from '../services/api';
 
 interface AdminUser {
@@ -39,7 +40,11 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default function AdminRightsScreen() {
+  const dispatch = useDispatch();
   const theme = useSelector((state: RootState) => state.settings.darkMode);
+  const user = useSelector((state: RootState) => state.auth.user);
+  const token = useSelector((state: RootState) => state.auth.token);
+  const refreshToken = useSelector((state: RootState) => state.auth.refreshToken);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [stats, setStats] = useState<DbStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -145,6 +150,28 @@ export default function AdminRightsScreen() {
     }
   }
 
+  function handleRoleSwitch(newRole: 'admin' | 'owner' | 'tester' | 'user') {
+    if (!user) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    const updatedUser = {
+      ...user,
+      role: newRole,
+    };
+
+    dispatch(
+      loginSuccess({
+        token: token || '',
+        refreshToken: refreshToken || '',
+        user: updatedUser,
+      })
+    );
+
+    Alert.alert('Success', `Switched to ${newRole} role. Check the navigation tabs to see available features.`);
+  }
+
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: bg }]}>
@@ -217,6 +244,28 @@ export default function AdminRightsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Role Switcher for Testing */}
+      <Text style={[styles.section, { color: text }]}>Test Different Roles</Text>
+      <View style={[styles.card, { backgroundColor: card }]}>
+        <Text style={{ color: subtext, fontSize: 12, marginBottom: 12 }}>
+          Switch your role temporarily to test different user experiences.
+        </Text>
+        <View style={styles.roleButtonsRow}>
+          {(['admin', 'owner', 'tester', 'user'] as const).map((role) => (
+            <TouchableOpacity
+              key={role}
+              style={[
+                styles.roleButton,
+                { backgroundColor: ROLE_COLORS[role], opacity: 0.9 },
+              ]}
+              onPress={() => handleRoleSwitch(role)}
+            >
+              <Text style={styles.btnText}>{role.charAt(0).toUpperCase() + role.slice(1)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       {/* Danger Zone */}
       <Text style={[styles.section, { color: '#e74c3c' }]}>Danger Zone</Text>
       <View style={[styles.card, { backgroundColor: card }]}>
@@ -243,4 +292,6 @@ const styles = StyleSheet.create({
   btn: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6 },
   btnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  roleButtonsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  roleButton: { flex: 1, minWidth: '45%', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
 });

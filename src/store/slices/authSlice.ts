@@ -13,17 +13,21 @@ interface User {
 export interface AuthState {
   isAuthenticated: boolean;
   token: string | null;
+  refreshToken: string | null;
   user: User | null;
   error: string | null;
   loading: boolean;
+  pendingVerificationEmail: string | null;
 }
 
 const initialState: AuthState = {
-  isAuthenticated: false, // Set to false to enable login functionality
+  isAuthenticated: false,
   token: null,
+  refreshToken: null,
   user: null,
   error: null,
   loading: false,
+  pendingVerificationEmail: null,
 };
 
 const authSlice = createSlice({
@@ -34,12 +38,14 @@ const authSlice = createSlice({
       state.loading = true;
       state.error = null;
     },
-    loginSuccess: (state, action: PayloadAction<{ token: string; user: User }>) => {
+    loginSuccess: (state, action: PayloadAction<{ token: string; refreshToken: string; user: User }>) => {
       state.isAuthenticated = true;
       state.token = action.payload.token;
+      state.refreshToken = action.payload.refreshToken;
       state.user = action.payload.user;
       state.loading = false;
       state.error = null;
+      state.pendingVerificationEmail = null;
     },
     loginFailure: (state, action: PayloadAction<string>) => {
       state.loading = false;
@@ -48,7 +54,13 @@ const authSlice = createSlice({
     logout: (state) => {
       state.isAuthenticated = false;
       state.token = null;
+      state.refreshToken = null;
       state.user = null;
+      state.pendingVerificationEmail = null;
+    },
+    setPendingVerification: (state, action: PayloadAction<string>) => {
+      state.pendingVerificationEmail = action.payload;
+      state.loading = false;
     },
     updateUser: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {
@@ -66,6 +78,7 @@ export const {
   loginSuccess,
   loginFailure,
   logout,
+  setPendingVerification,
   updateUser,
   clearAuthError,
 } = authSlice.actions;

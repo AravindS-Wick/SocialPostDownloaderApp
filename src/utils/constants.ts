@@ -1,15 +1,21 @@
+import { Platform } from 'react-native';
+
 // App constants
 export const APP_NAME = 'SocialSaver';
 
-// Local server (free, requires same WiFi network) — disabled for now
-// export const LOCAL_API = 'http://192.168.0.4:2500';
-export const LOCAL_API = 'https://fantastic-mercy-production-1ff1.up.railway.app';
-export const RAILWAY_API = 'https://fantastic-mercy-production-1ff1.up.railway.app';
+// Production API URL — from EXPO_PUBLIC_API_URL in .env
+export const RAILWAY_API: string =
+  process.env.EXPO_PUBLIC_API_URL ||
+  'https://postdownloaderapi-production.up.railway.app';
 
+// Resolve API URL based on environment
 const resolveApiBaseUrl = () => {
-  // TODO: re-enable local server once network issues are resolved
-  // if (Platform.OS === 'web') return 'http://localhost:2500';
-  // return LOCAL_API;
+  if (__DEV__) {
+    // Dev mode: use local backend
+    if (Platform.OS === 'android') return 'http://10.0.2.2:2500'; // Android emulator
+    return 'http://localhost:2500'; // iOS simulator
+  }
+  // Production build: use env variable or fallback
   return RAILWAY_API;
 };
 

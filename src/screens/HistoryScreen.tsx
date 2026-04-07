@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, FlatList, Image, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, Text, FlatList, Image, TouchableOpacity, Alert, Modal, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Button, Divider, IconButton, Searchbar, Menu, useTheme } from 'react-native-paper';
@@ -10,6 +10,7 @@ import { removeDownloadFromHistory, clearHistory } from '../store/slices/history
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { DownloadHistoryItem } from '../store/slices/historySlice';
 import ResponsiveContainer from '../components/ResponsiveContainer';
+import VideoPlayer from '../components/VideoPlayer';
 // TODO: Ad display - backlog
 // import AdBanner from '../components/ads/AdBanner';
 
@@ -21,6 +22,8 @@ const HistoryScreen = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [menuVisible, setMenuVisible] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<DownloadHistoryItem | null>(null);
+  const [mediaModalVisible, setMediaModalVisible] = useState(false);
 
   // Filter downloads based on search query
   const filteredDownloads = searchQuery
@@ -44,6 +47,12 @@ const HistoryScreen = () => {
         },
       ]
     );
+  };
+
+  // Handle file click — open media player
+  const handleOpenMedia = (item: DownloadHistoryItem) => {
+    setSelectedItem(item);
+    setMediaModalVisible(true);
   };
 
   // Handle redownload — navigate to Home tab with URL pre-filled
@@ -99,7 +108,7 @@ const HistoryScreen = () => {
         <View style={styles.itemContent}>
           <TouchableOpacity
             style={styles.thumbnailContainer}
-            onPress={() => handleRedownload(item)}
+            onPress={() => handleOpenMedia(item)}
           >
             <Image
               source={{ uri: item.thumbnail || 'https://via.placeholder.com/120x90' }}
@@ -108,6 +117,9 @@ const HistoryScreen = () => {
             />
             <View style={[styles.typeIconContainer, { backgroundColor: theme.dark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)' }]}>
               {getTypeIcon()}
+            </View>
+            <View style={styles.playIconContainer}>
+              <Ionicons name="play-circle" size={40} color="white" />
             </View>
           </TouchableOpacity>
 
@@ -188,12 +200,109 @@ const HistoryScreen = () => {
     );
   };
 
+  // Render media player modal
+  const renderMediaPlayer = () => {
+    if (!selectedItem) return null;
+
+    const isVideo = selectedItem.type === 'video';
+    const isAudio = selectedItem.type === 'audio';
+    const isImage = selectedItem.type === 'image';
+
+    return (
+      <Modal
+        visible={mediaModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMediaModalVisible(false)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: theme.dark ? 'rgba(0,0,0,0.95)' : 'rgba(0,0,0,0.9)' }]}>
+          {/* Close Button */}
+          <View style={styles.modalHeader}>
+            <IconButton
+              icon="close"
+              size={28}
+              iconColor="white"
+              onPress={() => setMediaModalVisible(false)}
+              style={styles.closeButton}
+            />
+          </View>
+
+          {/* Media Display */}
+          <View style={styles.mediaContainer}>
+            {isImage && (
+              <Image
+                source={{ uri: selectedItem.thumbnail || 'https://via.placeholder.com/400x600' }}
+                style={styles.fullImage}
+                resizeMode="contain"
+              />
+            )}
+
+            {isVideo && selectedItem.url && (
+              <VideoPlayer
+                source={selectedItem.url}
+                title={selectedItem.title}
+                posterImage={selectedItem.thumbnail}
+                filePath={selectedItem.filePath}
+              />
+            )}
+
+            {isAudio && (
+              <View style={styles.playerPlaceholder}>
+                <Ionicons
+                  name="musical-notes"
+                  size={80}
+                  color="white"
+                  style={{ opacity: 0.7 }}
+                />
+                <Text style={styles.playerText}>Audio Player</Text>
+                <Text style={styles.playerSubtext}>{selectedItem.title}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Media Info */}
+          <View style={[styles.mediaInfo, { backgroundColor: theme.dark ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)' }]}>
+            <Text style={styles.mediaTitle} numberOfLines={2}>{selectedItem.title}</Text>
+            <View style={styles.mediaDetails}>
+              <Text style={styles.mediaDetailText}>{selectedItem.platform}</Text>
+              <Text style={styles.mediaDetailText}>•</Text>
+              <Text style={styles.mediaDetailText}>{selectedItem.quality}</Text>
+              {selectedItem.fileSize && (
+                <>
+                  <Text style={styles.mediaDetailText}>•</Text>
+                  <Text style={styles.mediaDetailText}>{selectedItem.fileSize}</Text>
+                </>
+              )}
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.mediaActions}>
+            <Button
+              mode="contained"
+              onPress={() => {
+                setMediaModalVisible(false);
+                handleRedownload(selectedItem);
+              }}
+              icon="download"
+              style={styles.actionButton}
+            >
+              Redownload
+            </Button>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ResponsiveContainer>
-        {/* TODO: Ad display - backlog */}
-        {/* <AdBanner placement="history_top" /> */}
-        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]}>
+    <>
+      {renderMediaPlayer()}
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <ResponsiveContainer>
+          {/* TODO: Ad display - backlog */}
+          {/* <AdBanner placement="history_top" /> */}
+          <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]}>
           <Searchbar
             placeholder="Search downloads..."
             onChangeText={setSearchQuery}
@@ -230,9 +339,11 @@ const HistoryScreen = () => {
           ListEmptyComponent={renderEmptyComponent}
         />
       </ResponsiveContainer>
-    </View>
+      </View>
+    </>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -348,6 +459,88 @@ const styles = StyleSheet.create({
   },
   startButton: {
     paddingHorizontal: 16,
+  },
+  playIconContainer: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -20,
+    marginTop: -20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0.85,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingTop: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 8,
+  },
+  closeButton: {
+    margin: 0,
+  },
+  mediaContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  fullImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+  },
+  playerPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    aspectRatio: 16 / 9,
+  },
+  playerText: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 16,
+  },
+  playerSubtext: {
+    color: '#ccc',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  mediaInfo: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  mediaTitle: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  mediaDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  mediaDetailText: {
+    color: '#aaa',
+    fontSize: 12,
+    marginRight: 8,
+  },
+  mediaActions: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 12,
+  },
+  actionButton: {
+    borderRadius: 8,
   },
 });
 

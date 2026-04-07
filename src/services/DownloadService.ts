@@ -6,7 +6,6 @@ import { sendNotification } from './notifications';
 import { setupFolders } from './storage';
 import { API_BASE_URL } from '../utils/constants';
 import { store } from '../store';
-import { setSafFolderUri } from '../store/slices/settingsSlice';
 
 const { StorageAccessFramework } = FileSystem as any;
 
@@ -116,32 +115,8 @@ class DownloadService {
   }
 
   private async getAppSpecificDirectoryPath(type: 'video' | 'audio' | 'image'): Promise<string> {
-    // On Android, try SAF (Storage Access Framework) so files go to user-chosen public folder
-    if (Platform.OS === 'android' && StorageAccessFramework) {
-      try {
-        const savedUri = store.getState().settings.safFolderUri;
-        let folderUri: string | null = savedUri;
-
-        if (!folderUri) {
-          // Show folder picker once — user chooses Downloads/SocialSaver or DCIM/SocialSaver
-          const perm = await StorageAccessFramework.requestDirectoryPermissionsAsync();
-          if (perm.granted) {
-            folderUri = perm.directoryUri;
-            store.dispatch(setSafFolderUri(folderUri));
-          }
-        }
-
-        if (folderUri) {
-          // SAF URI is the chosen directory — return it as the target
-          // Callers that need to write will use StorageAccessFramework.createFileAsync
-          return folderUri;
-        }
-      } catch (e) {
-        console.warn('SAF folder picker failed, falling back to app directory:', e);
-      }
-    }
-
-    // Fallback: app-internal directory (iOS always uses this)
+    // Always use app-internal directory — MediaLibrary handles gallery saving separately.
+    // SAF was removed: it caused OOM on large files and repeated permission prompts.
     const baseDir = FileSystem.documentDirectory;
     const folderName = type === 'video' ? 'Videos' : type === 'audio' ? 'Audio' : 'Images';
     const downloadPath = store.getState().settings.downloadPath || 'SocialSaver';
@@ -178,19 +153,25 @@ class DownloadService {
     try {
       const targetDir = await this.getAppSpecificDirectoryPath(type);
 
-      // SAF content:// URI — write via StorageAccessFramework
+      // SAF content:// URI — for video/audio, skip the SAF write (readAsStringAsync
+      // loads the whole file into memory → OOM on large files). MediaLibrary.createAssetAsync
+      // in addToMediaLibrary will save the file to the gallery. Return the source URI so the
+      // caller can pass it directly to addToMediaLibrary.
       if (targetDir.startsWith('content://') && StorageAccessFramework) {
-        const mimeType = type === 'audio' ? 'audio/mpeg'
-          : type === 'image' ? 'image/jpeg'
-          : 'video/mp4';
-        const newFileUri = await StorageAccessFramework.createFileAsync(targetDir, fileName, mimeType);
-        const base64 = await FileSystem.readAsStringAsync(sourceUri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        await FileSystem.writeAsStringAsync(newFileUri, base64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        return newFileUri;
+        if (type === 'image') {
+          // Images are small enough for the base64 path
+          const mimeType = 'image/jpeg';
+          const newFileUri = await StorageAccessFramework.createFileAsync(targetDir, fileName, mimeType);
+          const base64 = await FileSystem.readAsStringAsync(sourceUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          await FileSystem.writeAsStringAsync(newFileUri, base64, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          return newFileUri;
+        }
+        // For video/audio: skip SAF write — addToMediaLibrary handles gallery save
+        return sourceUri;
       }
 
       // Standard file:// path
@@ -217,15 +198,11 @@ class DownloadService {
       const fileInfo = await FileSystem.getInfoAsync(filePath);
       if (!fileInfo.exists || fileInfo.size === 0) return null;
 
-      // Create asset then save into a named album (works on both Android & iOS)
-      const downloadPath = store.getState().settings.downloadPath || 'SocialSaver';
+      // createAssetAsync saves to the default gallery (DCIM) without triggering
+      // Android's "Allow app to modify this video?" system dialog.
+      // addAssetsToAlbumAsync (album grouping) is skipped intentionally — it triggers
+      // that prompt on every save on Android 10+.
       const asset = await MediaLibrary.createAssetAsync(filePath);
-      let album = await MediaLibrary.getAlbumAsync(downloadPath);
-      if (!album) {
-        album = await MediaLibrary.createAlbumAsync(downloadPath, asset, false);
-      } else {
-        await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-      }
       return asset.uri;
     } catch (error) {
       console.error('Error adding to media library:', error);

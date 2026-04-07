@@ -12,8 +12,12 @@ import HistoryScreen from '../screens/HistoryScreen';
 import BatchScreen from '../screens/BatchScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AuthScreen from '../screens/AuthScreen';
+import VerificationScreen from '../screens/VerificationScreen';
 import AdminRightsScreen from '../screens/AdminRightsScreen';
 import BugReportScreen from '../screens/BugReportScreen';
+import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -21,8 +25,12 @@ export type RootStackParamList = {
   History: undefined;
   Settings: undefined;
   Auth: undefined;
+  Verification: undefined;
   AdminRights: undefined;
   BugReport: undefined;
+  ChangePassword: undefined;
+  ForgotPassword: undefined;
+  ResetPassword: { email?: string; resetToken?: string };
 };
 
 export type MainTabParamList = {
@@ -43,6 +51,7 @@ function MainTabNavigator() {
 
   return (
     <Tab.Navigator
+      id={undefined}
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: any;
@@ -89,14 +98,20 @@ function MainTabNavigator() {
 
 export default function AppNavigator() {
   return (
-    <Stack.Navigator initialRouteName="Main"
+    <Stack.Navigator
+      id={undefined}
+      initialRouteName="Main"
       screenOptions={{ headerShown: false }}
     >
       <Stack.Screen name="Main" component={MainTabNavigator} />
       <Stack.Screen name="Download" component={DownloadScreen} options={{ headerShown: true }} />
       <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="Verification" component={VerificationScreen} options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="AdminRights" component={AdminRightsScreen} options={{ headerShown: true, title: 'Admin Rights' }} />
       <Stack.Screen name="BugReport" component={BugReportScreen} options={{ headerShown: true, title: 'Bug Report' }} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ headerShown: false, presentation: 'modal' }} />
     </Stack.Navigator>
   );
 }

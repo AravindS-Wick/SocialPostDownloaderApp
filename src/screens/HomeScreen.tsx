@@ -10,7 +10,7 @@ import {
   Platform,
   Alert,
   AppState,
-  Clipboard,
+  Clipboard, // eslint-disable-line deprecation/deprecation
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -28,11 +28,16 @@ import ResponsiveContainer from '../components/ResponsiveContainer';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
+interface QualityOption {
+  label: string;
+  filesize: number | null;
+}
+
 interface PreviewData {
   title: string;
   author: string;
   duration: string;
-  availableQualities: string[];
+  availableQualities: QualityOption[];
   thumbnail: string;
   description: string;
   views: string;
@@ -47,7 +52,7 @@ export default function HomeScreen() {
   const theme = useTheme();
   const { user } = useSelector((state: RootState) => state.auth);
   const downloads = useSelector((state: RootState) => state.history.downloads);
-  const { qualityPreference } = useSelector((state: RootState) => state.settings);
+  const { qualityPreference, notificationsEnabled } = useSelector((state: RootState) => state.settings);
 
   const [url, setUrl] = useState('');
   const [platform, setPlatform] = useState('auto-detect');
@@ -59,7 +64,12 @@ export default function HomeScreen() {
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [availableQualities, setAvailableQualities] = useState<string[]>(['1080p', '720p', '480p', '360p']);
+  const [availableQualities, setAvailableQualities] = useState<QualityOption[]>([
+    { label: '1080p', filesize: null },
+    { label: '720p', filesize: null },
+    { label: '480p', filesize: null },
+    { label: '360p', filesize: null },
+  ]);
 
   // Sync quality selection when default preference changes in Settings
   useEffect(() => {
@@ -94,6 +104,9 @@ export default function HomeScreen() {
     checkPermissions();
   }, []);
 
+  // Debounce ref — prevents firing /api/info on every keystroke
+  const analyzeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Auto-detect social media URLs from clipboard when app comes to foreground
   const lastClipboardUrl = useRef<string | null>(null);
   useEffect(() => {
@@ -121,6 +134,7 @@ export default function HomeScreen() {
                   if (urlMatch) {
                     setUrl(urlMatch[0]);
                     detectPlatform(urlMatch[0]);
+                    scheduleAnalyze(urlMatch[0]);
                   }
                 },
               },
@@ -151,17 +165,32 @@ export default function HomeScreen() {
       if (clipboardText) {
         setUrl(clipboardText);
         detectPlatform(clipboardText);
+        scheduleAnalyze(clipboardText);
       }
     } catch (error) {
       console.error('Failed to paste from clipboard', error);
     }
   };
 
+  const scheduleAnalyze = (targetUrl: string) => {
+    if (!targetUrl.trim()) return;
+    if (analyzeDebounceRef.current) clearTimeout(analyzeDebounceRef.current);
+    analyzeDebounceRef.current = setTimeout(() => {
+      analyzeDebounceRef.current = null;
+      runAnalyze(targetUrl.trim());
+    }, 800);
+  };
+
   const handleClearUrl = () => {
     setUrl('');
     setShowPreview(false);
     setPreviewData(null);
-    setAvailableQualities(['1080p', '720p', '480p', '360p']);
+    setAvailableQualities([
+      { label: '1080p', filesize: null },
+      { label: '720p', filesize: null },
+      { label: '480p', filesize: null },
+      { label: '360p', filesize: null },
+    ]);
     setQuality(qualityPreference !== 'manual' ? qualityPreference : '1080p');
   };
 
@@ -226,7 +255,7 @@ export default function HomeScreen() {
             filePath: result.filePath,
           }));
         }
-        if (Platform.OS !== 'web') {
+        if (Platform.OS !== 'web' && notificationsEnabled) {
           Alert.alert(
             'Download Complete',
             `Successfully downloaded "${result.metadata?.title || 'content'}" and saved to ${result.savedLocation}!`,
@@ -262,9 +291,7 @@ export default function HomeScreen() {
     }
   };
 
-  const handleAnalyze = async () => {
-    if (!url.trim()) return;
-
+  const runAnalyze = async (targetUrl: string) => {
     setLoading(true);
     setProgress(0);
 
@@ -272,21 +299,31 @@ export default function HomeScreen() {
       const { downloadAPI } = await import('../services/api');
 
       setProgress(10);
-      const mediaInfo = await downloadAPI.getMediaInfo(url);
+      const mediaInfo = await downloadAPI.getMediaInfo(targetUrl);
       setProgress(100);
 
       setLoading(false);
-      // Use qualities from the info endpoint (includes downscale tiers)
-      const fetchedQualities: string[] = mediaInfo?.qualities?.length
-        ? mediaInfo.qualities
-        : mediaInfo?.formats
-            ?.map((f: any) => f.quality || f.format_note)
-            ?.filter(Boolean)
-            ?.filter((v: string, i: number, a: string[]) => a.indexOf(v) === i) || ['1080p', '720p', '480p', '360p'];
+
+      // Build QualityOption list — prefer qualitiesWithSize from API, fall back to plain strings
+      const fetchedQualities: QualityOption[] = mediaInfo?.qualitiesWithSize?.length
+        ? mediaInfo.qualitiesWithSize
+        : mediaInfo?.qualities?.length
+          ? (mediaInfo.qualities as string[]).map((label: string) => ({ label, filesize: null }))
+          : mediaInfo?.formats
+              ?.map((f: any) => f.quality || f.format_note)
+              ?.filter(Boolean)
+              ?.filter((v: string, i: number, a: string[]) => a.indexOf(v) === i)
+              ?.map((label: string) => ({ label, filesize: null }))
+            ?? [
+                { label: '1080p', filesize: null },
+                { label: '720p', filesize: null },
+                { label: '480p', filesize: null },
+                { label: '360p', filesize: null },
+              ];
 
       setAvailableQualities(fetchedQualities);
-      if (fetchedQualities.length > 0 && !fetchedQualities.includes(quality)) {
-        setQuality(fetchedQualities[0]);
+      if (fetchedQualities.length > 0 && !fetchedQualities.some(q => q.label === quality)) {
+        setQuality(fetchedQualities[0].label);
       }
 
       // Auto-detect image-only posts (e.g. Instagram photos): no video or audio qualities
@@ -310,16 +347,31 @@ export default function HomeScreen() {
         likes: mediaInfo?.like_count ? formatCount(mediaInfo.like_count) : 'Unknown',
         publishDate: mediaInfo?.upload_date ? formatDate(mediaInfo.upload_date) : 'Unknown',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error analyzing URL:', error);
       setLoading(false);
       setProgress(0);
+      const isRateLimit = error?.isRateLimit || error?.response?.status === 429;
       Alert.alert(
-        'Analysis Failed',
-        'There was an error analyzing this URL. Please check the URL and try again.',
+        isRateLimit ? 'Slow Down' : 'Analysis Failed',
+        isRateLimit
+          ? error.message || 'Too many requests. Please wait a moment and try again.'
+          : 'There was an error analyzing this URL. Please check the URL and try again.',
         [{ text: 'OK' }]
       );
     }
+  };
+
+  const handleAnalyze = () => {
+    if (!url.trim()) return;
+    scheduleAnalyze(url);
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(1)}GB`;
+    if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(0)}MB`;
+    if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)}KB`;
+    return `${bytes}B`;
   };
 
   const formatCount = (count: number): string => {
@@ -362,6 +414,7 @@ export default function HomeScreen() {
     if (qualityPreference === 'manual') {
       setQuality(item.quality);
     }
+    scheduleAnalyze(item.url);
   };
 
   const renderDownloadItem = (item: DownloadHistoryItem) => (
@@ -409,7 +462,7 @@ export default function HomeScreen() {
   );
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} nestedScrollEnabled={false}>
       <ResponsiveContainer>
       {/* Header */}
       <LinearGradient
@@ -464,6 +517,7 @@ export default function HomeScreen() {
                   onChangeText={(text) => {
                     setUrl(text);
                     detectPlatform(text);
+                    scheduleAnalyze(text);
                   }}
                   placeholderTextColor={theme.colors.onSurfaceVariant}
                   autoCapitalize="none"
@@ -476,9 +530,35 @@ export default function HomeScreen() {
               </View>
             </View>
 
+            {/* Thumbnail strip — appears as soon as URL is analyzed */}
+            {showPreview && previewData && (
+              <View style={[styles.thumbnailStrip, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
+                {previewData.thumbnail ? (
+                  <Image source={{ uri: previewData.thumbnail }} style={styles.thumbnailStripImage} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.thumbnailStripImage, { backgroundColor: theme.colors.surface, justifyContent: 'center', alignItems: 'center' }]}>
+                    <MaterialIcons name="image" size={28} color={theme.colors.onSurfaceVariant} />
+                  </View>
+                )}
+                <View style={styles.thumbnailStripInfo}>
+                  <Text style={[styles.thumbnailStripTitle, { color: theme.colors.onSurface }]} numberOfLines={2}>
+                    {previewData.title}
+                  </Text>
+                  <Text style={[styles.thumbnailStripMeta, { color: theme.colors.onSurfaceVariant }]}>
+                    {previewData.author} · {previewData.duration}
+                  </Text>
+                  {previewData.views !== 'Unknown' && (
+                    <Text style={[styles.thumbnailStripMeta, { color: theme.colors.onSurfaceVariant }]}>
+                      {previewData.views} views
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )}
+
             {/* Platform Selection */}
             <Text style={[styles.sectionLabel, { color: theme.colors.onSurface }]}>Platform</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.platformScroller}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled style={styles.platformScroller}>
               {[
                 { key: 'auto-detect', label: 'Auto-detect', icon: <MaterialIcons name="auto-awesome" size={18} /> },
                 { key: 'youtube', label: 'YouTube' },
@@ -527,32 +607,41 @@ export default function HomeScreen() {
               ))}
             </View>
 
-            {/* Quality Selection */}
+            {/* Quality Selection — horizontal scroll, shows size under each label */}
             <Text style={[styles.sectionLabel, { color: theme.colors.onSurface }]}>Quality</Text>
-            <View style={[styles.qualitySelector, { borderColor: theme.colors.outline }]}>
-              {['best', ...availableQualities].slice(0, 5).map((q, i, arr) => (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              nestedScrollEnabled
+              style={[styles.qualityScroller, { borderWidth: 1.5, borderRadius: 50, borderColor: 'rgba(127,0,255,0.3)', overflow: 'hidden' }]}
+              contentContainerStyle={styles.qualityScrollContent}
+            >
+              {[{ label: 'best', filesize: null }, ...availableQualities].map((q, i, arr) => (
                 <TouchableOpacity
-                  key={q}
+                  key={q.label}
                   style={[
                     styles.qualityOption,
-                    { flex: 1, backgroundColor: theme.colors.surfaceVariant },
+                    { backgroundColor: theme.colors.surfaceVariant },
                     i === 0 && { borderTopLeftRadius: 50, borderBottomLeftRadius: 50 },
                     i === arr.length - 1 && { borderTopRightRadius: 50, borderBottomRightRadius: 50 },
-                    quality === q && styles.selectedQuality,
+                    quality === q.label && styles.selectedQuality,
                   ]}
-                  onPress={() => setQuality(q)}
+                  onPress={() => setQuality(q.label)}
                 >
-                  {qualityPreference === q && (
+                  {qualityPreference === q.label && (
                     <View style={styles.defaultBadge}>
                       <Text style={styles.defaultBadgeText}>D</Text>
                     </View>
                   )}
-                  <Text style={[styles.qualityText, { color: theme.colors.onSurface }, quality === q && styles.selectedQualityText]}>
-                    {q === 'best' ? 'Best' : q}
+                  <Text style={[styles.qualityText, { color: theme.colors.onSurface }, quality === q.label && styles.selectedQualityText]}>
+                    {q.label === 'best' ? 'Best' : q.label}
+                  </Text>
+                  <Text style={[styles.qualitySizeText, quality === q.label && { color: 'rgba(255,255,255,0.75)' }]}>
+                    {q.filesize ? formatFileSize(q.filesize) : q.label === 'best' ? 'auto' : '–'}
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
 
             {/* Progress */}
             {loading && (
@@ -565,7 +654,7 @@ export default function HomeScreen() {
               </View>
             )}
 
-            {/* Preview */}
+            {/* Preview — commented out: thumbnail strip above quality bar covers this
             {showPreview && previewData && (
               <View style={[styles.previewContainer, { borderColor: theme.colors.outline, backgroundColor: theme.colors.surfaceVariant }]}>
                 <Text style={styles.previewTitle}>Content Preview</Text>
@@ -580,14 +669,14 @@ export default function HomeScreen() {
                     <View style={styles.previewQualityContainer}>
                       <Text style={[styles.previewQualityLabel, { color: theme.colors.onSurfaceVariant }]}>Available Qualities:</Text>
                       <View style={styles.previewQualityChips}>
-                        {previewData.availableQualities.slice(0, 6).map((q: string, i: number) => (
+                        {previewData.availableQualities.slice(0, 6).map((q: QualityOption, i: number) => (
                           <Chip
                             key={i}
-                            style={[styles.previewQualityChip, quality === q && { backgroundColor: '#7F00FF' }]}
-                            textStyle={{ fontSize: 10, color: quality === q ? 'white' : undefined }}
-                            onPress={() => setQuality(q)}
+                            style={[styles.previewQualityChip, quality === q.label && { backgroundColor: '#7F00FF' }]}
+                            textStyle={{ fontSize: 10, color: quality === q.label ? 'white' : undefined }}
+                            onPress={() => setQuality(q.label)}
                           >
-                            {q}
+                            {q.label}{q.filesize ? ` · ${formatFileSize(q.filesize)}` : ''}
                           </Chip>
                         ))}
                       </View>
@@ -596,6 +685,7 @@ export default function HomeScreen() {
                 </View>
               </View>
             )}
+            */}
 
             {/* Error */}
             {showError && (
@@ -739,18 +829,30 @@ const styles = StyleSheet.create({
   },
   downloadTypeText: { marginLeft: 6, fontSize: 14, fontWeight: '500' },
   selectedDownloadTypeText: { color: 'white' },
-  qualitySelector: {
-    flexDirection: 'row', borderWidth: 1.5, borderRadius: 50, overflow: 'visible', marginBottom: 20, marginTop: 4,
-    elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3,
+  thumbnailStrip: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderRadius: 12, padding: 10, marginBottom: 16,
+  },
+  thumbnailStripImage: { width: 90, height: 60, borderRadius: 8 },
+  thumbnailStripInfo: { flex: 1, marginLeft: 10 },
+  thumbnailStripTitle: { fontSize: 13, fontWeight: '600', marginBottom: 3 },
+  thumbnailStripMeta: { fontSize: 11 },
+  qualityScroller: { marginBottom: 20, marginTop: 4 },
+  qualityScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
   },
   qualityOption: {
     position: 'relative', overflow: 'visible',
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 10,
+    flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 10, paddingHorizontal: 14, minWidth: 72,
+    paddingTop: 10,
   },
+  qualitySizeText: { fontSize: 10, color: '#9E9E9E', marginTop: 3, fontWeight: '600', letterSpacing: 0.2 },
   defaultBadge: {
-    position: 'absolute', top: -8, right: 2, zIndex: 1,
-    width: 18, height: 18, borderRadius: 9,
-    backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#333',
+    position: 'absolute', top: 3, right: 4, zIndex: 1,
+    width: 16, height: 16, borderRadius: 8,
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#7F00FF',
     justifyContent: 'center', alignItems: 'center',
   },
   defaultBadgeText: { fontSize: 10, fontWeight: 'bold', color: '#333' },

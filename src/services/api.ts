@@ -174,6 +174,36 @@ export const userAPI = {
     const response = await apiClient.get('/user/profile');
     return response.data;
   },
+
+  verifyEmail: async (data: { email: string; code: string }) => {
+    const response = await apiClient.post('/auth/verify', data);
+    return response.data;
+  },
+
+  resendVerification: async (email: string) => {
+    const response = await apiClient.post('/auth/resend-verification', { email });
+    return response.data;
+  },
+
+  logout: async () => {
+    const response = await apiClient.post('/auth/logout');
+    return response.data;
+  },
+
+  changePassword: async (data: { oldPassword: string; newPassword: string }) => {
+    const response = await axiosInstance.post('/auth/change-password', data);
+    return response.data;
+  },
+
+  forgotPassword: async (email: string) => {
+    const response = await apiClient.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  resetPassword: async (data: { email: string; resetToken: string; newPassword: string }) => {
+    const response = await apiClient.post('/auth/reset-password', data);
+    return response.data;
+  },
 };
 
 // Platform API

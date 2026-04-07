@@ -4,8 +4,27 @@ import { Text, TextInput, Button, useTheme, IconButton, SegmentedButtons } from 
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { loginStart, loginSuccess, loginFailure, clearAuthError } from '../store/slices/authSlice';
+import { loginStart, loginSuccess, loginFailure, clearAuthError, setPendingVerification } from '../store/slices/authSlice';
 import { userAPI } from '../services/api';
+
+// RFC 5322-ish — matches what the API accepts
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+
+const PASSWORD_RULES = [
+  { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
+  { label: 'One uppercase letter (A–Z)', test: (p: string) => /[A-Z]/.test(p) },
+  { label: 'One lowercase letter (a–z)', test: (p: string) => /[a-z]/.test(p) },
+  { label: 'One number (0–9)', test: (p: string) => /\d/.test(p) },
+  { label: 'One special character (!@#$%...)', test: (p: string) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(p) },
+];
+
+const safeGoBack = (nav: any) => {
+  if (nav.canGoBack?.()) {
+    nav.goBack();
+  } else {
+    nav.navigate?.('Main');
+  }
+};
 
 export default function AuthScreen() {
   const navigation = useNavigation();
@@ -19,20 +38,44 @@ export default function AuthScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+
+  const emailError = emailTouched && email && !EMAIL_REGEX.test(email.trim())
+    ? 'Enter a valid email address (e.g. you@example.com)'
+    : '';
+
+  const passwordRuleResults = PASSWORD_RULES.map(rule => ({
+    label: rule.label,
+    passed: rule.test(password),
+  }));
+  const allPasswordRulesPassed = passwordRuleResults.every(r => r.passed);
 
   const handleLogin = async () => {
     setLocalError('');
-    if (!email.trim() || !password.trim()) {
-      setLocalError('Email and password are required.');
+
+    if (!email.trim()) {
+      setLocalError('Email is required.');
+      setEmailTouched(true);
+      return;
+    }
+    if (!EMAIL_REGEX.test(email.trim())) {
+      setLocalError('Enter a valid email address.');
+      setEmailTouched(true);
+      return;
+    }
+    if (!password) {
+      setLocalError('Password is required.');
       return;
     }
 
     dispatch(loginStart());
     try {
-      const response = await userAPI.login({ email: email.trim(), password });
+      const response = await userAPI.login({ email: email.trim().toLowerCase(), password });
       if (response.success && response.token) {
         dispatch(loginSuccess({
           token: response.token,
+          refreshToken: response.refreshToken,
           user: {
             id: response.user?.id || email,
             username: response.user?.name || email.split('@')[0],
@@ -40,11 +83,16 @@ export default function AuthScreen() {
             role: response.user?.role || 'user',
           },
         }));
-        navigation.goBack();
+        safeGoBack(navigation);
       } else {
         dispatch(loginFailure(response.error || 'Login failed'));
       }
     } catch (err: any) {
+      if (err?.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        dispatch(setPendingVerification(email.trim().toLowerCase()));
+        (navigation as any).navigate('Verification');
+        return;
+      }
       const msg = err?.response?.data?.error || err?.message || 'Login failed. Please try again.';
       dispatch(loginFailure(msg));
     }
@@ -52,12 +100,24 @@ export default function AuthScreen() {
 
   const handleRegister = async () => {
     setLocalError('');
-    if (!email.trim() || !password.trim()) {
-      setLocalError('Email and password are required.');
+
+    if (!email.trim()) {
+      setLocalError('Email is required.');
+      setEmailTouched(true);
       return;
     }
-    if (password.length < 6) {
-      setLocalError('Password must be at least 6 characters.');
+    if (!EMAIL_REGEX.test(email.trim())) {
+      setLocalError('Enter a valid email address.');
+      setEmailTouched(true);
+      return;
+    }
+    if (!password) {
+      setLocalError('Password is required.');
+      return;
+    }
+    if (!allPasswordRulesPassed) {
+      setLocalError('Password does not meet the requirements below.');
+      setPasswordTouched(true);
       return;
     }
     if (password !== confirmPassword) {
@@ -69,28 +129,13 @@ export default function AuthScreen() {
     try {
       const regResponse = await userAPI.register({
         username: email.split('@')[0],
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         password,
       });
 
       if (regResponse.success) {
-        // Auto-login after successful registration
-        const loginResponse = await userAPI.login({ email: email.trim(), password });
-        if (loginResponse.success && loginResponse.token) {
-          dispatch(loginSuccess({
-            token: loginResponse.token,
-            user: {
-              id: loginResponse.user?.id || email,
-              username: loginResponse.user?.name || email.split('@')[0],
-              email: loginResponse.user?.email || email,
-              role: loginResponse.user?.role || 'user',
-            },
-          }));
-          navigation.goBack();
-        } else {
-          dispatch(loginFailure('Registration succeeded but auto-login failed. Please log in manually.'));
-          setMode('login');
-        }
+        dispatch(setPendingVerification(email.trim().toLowerCase()));
+        (navigation as any).navigate('Verification');
       } else {
         dispatch(loginFailure(regResponse.message || 'Registration failed'));
       }
@@ -110,7 +155,7 @@ export default function AuthScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {/* Close button */}
         <View style={styles.closeRow}>
-          <IconButton icon="close" size={24} onPress={() => navigation.goBack()} />
+          <IconButton icon="close" size={24} onPress={() => safeGoBack(navigation)} />
         </View>
 
         <Text variant="headlineMedium" style={[styles.heading, { color: theme.colors.onSurface }]}>
@@ -128,6 +173,8 @@ export default function AuthScreen() {
           onValueChange={(val) => {
             setMode(val as 'login' | 'register');
             setLocalError('');
+            setEmailTouched(false);
+            setPasswordTouched(false);
             dispatch(clearAuthError());
           }}
           buttons={[
@@ -144,28 +191,46 @@ export default function AuthScreen() {
           </View>
         ) : null}
 
-        {/* Form */}
+        {/* Email */}
         <TextInput
           label="Email"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(v) => { setEmail(v); setEmailTouched(true); }}
+          onBlur={() => setEmailTouched(true)}
           mode="outlined"
           keyboardType="email-address"
           autoCapitalize="none"
+          autoCorrect={false}
           left={<TextInput.Icon icon="email" />}
           style={styles.input}
+          error={!!emailError}
         />
+        {emailError ? <Text style={styles.fieldError}>{emailError}</Text> : null}
 
+        {/* Password */}
         <TextInput
           label="Password"
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(v) => { setPassword(v); setPasswordTouched(true); }}
           mode="outlined"
           secureTextEntry={!showPassword}
           left={<TextInput.Icon icon="lock" />}
           right={<TextInput.Icon icon={showPassword ? 'eye-off' : 'eye'} onPress={() => setShowPassword(!showPassword)} />}
           style={styles.input}
         />
+
+        {/* Password rules — show only in register mode after user starts typing */}
+        {mode === 'register' && passwordTouched && (
+          <View style={[styles.rulesBox, { backgroundColor: theme.dark ? 'rgba(255,255,255,0.05)' : '#f5f5f5' }]}>
+            {passwordRuleResults.map((rule) => (
+              <View key={rule.label} style={styles.ruleRow}>
+                <Text style={{ color: rule.passed ? '#2e7d32' : '#c62828', fontSize: 13 }}>
+                  {rule.passed ? '✓' : '✗'}{'  '}{rule.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {mode === 'register' && (
           <TextInput
@@ -176,8 +241,12 @@ export default function AuthScreen() {
             secureTextEntry={!showPassword}
             left={<TextInput.Icon icon="lock-check" />}
             style={styles.input}
+            error={!!confirmPassword && confirmPassword !== password}
           />
         )}
+        {mode === 'register' && confirmPassword && confirmPassword !== password ? (
+          <Text style={styles.fieldError}>Passwords do not match</Text>
+        ) : null}
 
         <Button
           mode="contained"
@@ -190,6 +259,18 @@ export default function AuthScreen() {
         >
           {mode === 'login' ? 'Log In' : 'Create Account'}
         </Button>
+
+        {/* Forgot Password Link */}
+        {mode === 'login' && (
+          <Button
+            mode="text"
+            onPress={() => (navigation as any).navigate('ForgotPassword')}
+            style={styles.forgotPasswordButton}
+            labelStyle={styles.forgotPasswordButtonLabel}
+          >
+            Forgot Password?
+          </Button>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -208,11 +289,26 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorText: { color: '#d32f2f', fontSize: 14 },
+  fieldError: { color: '#c62828', fontSize: 12, marginTop: -10, marginBottom: 10, paddingLeft: 4 },
   input: { marginBottom: 16 },
+  rulesBox: {
+    borderRadius: 8,
+    padding: 12,
+    marginTop: -8,
+    marginBottom: 16,
+  },
+  ruleRow: { marginBottom: 4 },
   submitButton: {
     marginTop: 8,
     borderRadius: 8,
   },
   submitButtonContent: { height: 50 },
   submitButtonLabel: { fontSize: 16, fontWeight: 'bold' },
+  forgotPasswordButton: {
+    marginTop: 12,
+    alignSelf: 'flex-end',
+  },
+  forgotPasswordButtonLabel: {
+    fontSize: 12,
+  },
 });

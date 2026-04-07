@@ -6,7 +6,7 @@ import {
   Platform,
   Alert,
   TextInput,
-  Clipboard,
+  Clipboard, // eslint-disable-line deprecation/deprecation
 } from 'react-native';
 import { Text, Button, IconButton, useTheme } from 'react-native-paper';
 import { useDispatch, useSelector } from 'react-redux';
