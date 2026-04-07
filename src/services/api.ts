@@ -158,50 +158,50 @@ export const downloadAPI = {
   },
 };
 
-// User API
+// User API — all calls use axiosInstance so the Railway fallback applies on network errors
 export const userAPI = {
   login: async (credentials: { email: string; password: string }) => {
-    const response = await apiClient.post('/auth/login', credentials);
+    const response = await axiosInstance.post('/api/auth/login', credentials);
     return response.data;
   },
 
   register: async (userData: { username: string; email: string; password: string }) => {
-    const response = await apiClient.post('/auth/register', userData);
+    const response = await axiosInstance.post('/api/auth/register', userData);
     return response.data;
   },
 
   getUserProfile: async () => {
-    const response = await apiClient.get('/user/profile');
+    const response = await axiosInstance.get('/api/auth/me');
     return response.data;
   },
 
   verifyEmail: async (data: { email: string; code: string }) => {
-    const response = await apiClient.post('/auth/verify', data);
+    const response = await axiosInstance.post('/api/auth/verify', data);
     return response.data;
   },
 
   resendVerification: async (email: string) => {
-    const response = await apiClient.post('/auth/resend-verification', { email });
+    const response = await axiosInstance.post('/api/auth/resend-verification', { email });
     return response.data;
   },
 
   logout: async () => {
-    const response = await apiClient.post('/auth/logout');
+    const response = await axiosInstance.post('/api/auth/logout');
     return response.data;
   },
 
   changePassword: async (data: { oldPassword: string; newPassword: string }) => {
-    const response = await axiosInstance.post('/auth/change-password', data);
+    const response = await axiosInstance.post('/api/auth/change-password', data);
     return response.data;
   },
 
   forgotPassword: async (email: string) => {
-    const response = await apiClient.post('/auth/forgot-password', { email });
+    const response = await axiosInstance.post('/api/auth/forgot-password', { email });
     return response.data;
   },
 
   resetPassword: async (data: { email: string; resetToken: string; newPassword: string }) => {
-    const response = await apiClient.post('/auth/reset-password', data);
+    const response = await axiosInstance.post('/api/auth/reset-password', data);
     return response.data;
   },
 };
