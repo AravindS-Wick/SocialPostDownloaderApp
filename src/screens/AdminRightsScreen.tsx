@@ -87,15 +87,15 @@ export default function AdminRightsScreen() {
   }
 
   async function handleRemove(email: string) {
-    Alert.alert('Remove User', `Remove ${email}?`, [
+    Alert.alert('Block User', `Block ${email}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Remove', style: 'destructive', onPress: async () => {
+        text: 'Block', style: 'destructive', onPress: async () => {
           try {
-            await adminAPI.removeUser(email);
-            setUsers(prev => prev.filter(u => u.email !== email));
+            await adminAPI.blockUser(email, true);
+            setUsers(prev => prev.map(u => u.email === email ? { ...u, is_blocked: 1 } : u));
           } catch {
-            Alert.alert('Error', 'Failed to remove user');
+            Alert.alert('Error', 'Failed to block user');
           }
         }
       }
@@ -108,7 +108,7 @@ export default function AdminRightsScreen() {
       {
         text: 'Clear', style: 'destructive', onPress: async () => {
           try {
-            await adminAPI.clearDb();
+            await adminAPI.clearAllLogs();
             await loadData();
             Alert.alert('Done', 'Download logs cleared');
           } catch {
@@ -120,19 +120,8 @@ export default function AdminRightsScreen() {
   }
 
   async function handleRestart() {
-    Alert.alert('Restart API', 'The API will restart. App will reconnect shortly.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Restart', style: 'destructive', onPress: async () => {
-          try {
-            await adminAPI.restart();
-            Alert.alert('Restart initiated', 'API is restarting. Please wait a few seconds.');
-          } catch {
-            // Expected — API goes down before response arrives
-            Alert.alert('Restart initiated', 'API is restarting. Please wait a few seconds.');
-          }
-        }
-      }
+    Alert.alert('Restart API', 'Railway will handle restart automatically on next deploy.', [
+      { text: 'OK' }
     ]);
   }
 
@@ -142,11 +131,12 @@ export default function AdminRightsScreen() {
       return;
     }
     try {
-      await adminAPI.approveOwner(ownerEmail);
-      Alert.alert('Done', `${ownerEmail} confirmed as owner`);
+      await adminAPI.setUserRole(ownerEmail, 'owner');
+      Alert.alert('Done', `${ownerEmail} promoted to owner`);
       setOwnerEmail('');
+      await loadData();
     } catch {
-      Alert.alert('Error', 'Failed to approve owner');
+      Alert.alert('Error', 'Failed to update role');
     }
   }
 

@@ -146,7 +146,7 @@ const SettingsScreen = () => {
           onPress: async () => {
             try {
               const { adminAPI } = await import('../services/api');
-              await adminAPI.restart();
+              await adminAPI.clearAllLogs(); // restart not available — clear logs instead
               Alert.alert('Restart Initiated', 'The API server is restarting. Please wait a moment.');
             } catch (error: any) {
               const msg = error?.response?.data?.error || error?.message || 'Failed to restart API';

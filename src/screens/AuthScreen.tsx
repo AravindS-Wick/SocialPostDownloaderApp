@@ -80,7 +80,7 @@ export default function AuthScreen() {
             id: response.user?.id || email,
             username: response.user?.name || email.split('@')[0],
             email: response.user?.email || email,
-            role: response.user?.role || 'user',
+            role: response.user?.role ?? 'user',
           },
         }));
         safeGoBack(navigation);
