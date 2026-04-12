@@ -10,7 +10,7 @@ import {
   Platform,
   Alert,
   AppState,
-  Clipboard, // eslint-disable-line deprecation/deprecation
+  Clipboard,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';

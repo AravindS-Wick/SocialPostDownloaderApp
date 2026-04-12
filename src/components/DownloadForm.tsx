@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TextInput, Text, TouchableOpacity, Clipboard } from 'react-native'; // eslint-disable-line deprecation/deprecation
+import { View, StyleSheet, TextInput, Text, TouchableOpacity, Clipboard } from 'react-native';
 import { Button, IconButton } from 'react-native-paper';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { detectPlatformFromUrl } from '../services/api';
