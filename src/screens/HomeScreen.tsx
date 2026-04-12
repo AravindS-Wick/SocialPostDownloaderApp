@@ -352,11 +352,12 @@ export default function HomeScreen() {
       setLoading(false);
       setProgress(0);
       const isRateLimit = error?.isRateLimit || error?.response?.status === 429;
+      const apiError = error?.response?.data?.error;
       Alert.alert(
         isRateLimit ? 'Slow Down' : 'Analysis Failed',
         isRateLimit
           ? error.message || 'Too many requests. Please wait a moment and try again.'
-          : 'There was an error analyzing this URL. Please check the URL and try again.',
+          : apiError || 'There was an error analyzing this URL. Please check the URL and try again.',
         [{ text: 'OK' }]
       );
     }
