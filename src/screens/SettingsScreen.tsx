@@ -306,35 +306,62 @@ const SettingsScreen = () => {
       {/* About & Help */}
       <List.Section>
         <List.Subheader>About & Help</List.Subheader>
-        
+
         <List.Item
           title="About This App"
           description="Version 1.0.0"
           left={props => <List.Icon {...props} icon="information" />}
         />
-        
+
         <Divider />
-        
-        <List.Item
-          title="Privacy Policy"
-          description="View our privacy policy"
-          left={props => <List.Icon {...props} icon="shield-account" />}
-        />
-        
-        <Divider />
-        
-        <List.Item
-          title="Terms of Service"
-          description="View our terms of service"
-          left={props => <List.Icon {...props} icon="file-document" />}
-        />
-        
-        <Divider />
-        
+
         <List.Item
           title="Help & Support"
           description="Get help using the app"
           left={props => <List.Icon {...props} icon="help-circle" />}
+        />
+      </List.Section>
+
+      {/* Legal */}
+      <List.Section>
+        <List.Subheader>Legal</List.Subheader>
+
+        <List.Item
+          title="Privacy Policy"
+          description="How we collect and protect your data"
+          left={props => <List.Icon {...props} icon="shield-account" />}
+          right={props => <List.Icon {...props} icon="chevron-right" />}
+          onPress={() => navigation.navigate('Legal', { docKey: 'privacy' })}
+        />
+
+        <Divider />
+
+        <List.Item
+          title="Terms of Service"
+          description="Your rights and obligations"
+          left={props => <List.Icon {...props} icon="file-document" />}
+          right={props => <List.Icon {...props} icon="chevron-right" />}
+          onPress={() => navigation.navigate('Legal', { docKey: 'terms' })}
+        />
+
+        <Divider />
+
+        <List.Item
+          title="Terms & Conditions"
+          description="Full legal conditions including API use"
+          left={props => <List.Icon {...props} icon="file-document-multiple" />}
+          right={props => <List.Icon {...props} icon="chevron-right" />}
+          onPress={() => navigation.navigate('Legal', { docKey: 'conditions' })}
+        />
+
+        <Divider />
+
+        <List.Item
+          title="Usage Policy"
+          description="Content rules and enforcement"
+          left={props => <List.Icon {...props} icon="cancel" />}
+          right={props => <List.Icon {...props} icon="chevron-right" />}
+          onPress={() => navigation.navigate('Legal', { docKey: 'usage' })}
         />
       </List.Section>
       
