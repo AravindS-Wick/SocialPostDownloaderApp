@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "Social Media Downloader",
-    "slug": "social-media-downloader-v2",
+    "name": "SocialPostOwnerUI",
+    "slug": "socialpostownerui",
+    "scheme": "socialpostownerui",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,6 +16,22 @@
     },
     "assetBundlePatterns": [
       "**/*"
+    ],
+    "plugins": [
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to save downloads.",
+          "savePhotosPermission": "Allow $(PRODUCT_NAME) to save downloaded media to your library.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
+      [
+        "expo-share-intent",
+        {
+          "androidIntentFilters": ["text/*"]
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": true,
@@ -35,9 +52,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "a053b56a-883b-4fa0-b83c-6518a1a8cb62"
+        "projectId": "4600ba8c-86d8-4afa-a96f-364c5e4d4e61"
       }
     },
-    "owner": "rovamaw825"
+    "owner": "miens"
   }
 }

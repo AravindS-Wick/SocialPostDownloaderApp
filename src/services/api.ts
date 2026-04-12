@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../utils/constants';
+import axiosInstance from './axiosInstance';
 
 const API_REQUEST_TIMEOUT_MS = 60000;
 const DOWNLOAD_TIMEOUT_MS = 180000;
@@ -46,25 +47,16 @@ export const checkApiAvailability = async (): Promise<boolean> => {
   }
 };
 
-// Download API
+// Download API — uses axiosInstance for auth headers (token attached automatically when logged in)
 export const downloadAPI = {
   getMediaInfo: async (url: string) => {
     try {
       const directUrl = resolveEndpointUrl(endpoints.mediaInfo);
-      const controller = new AbortController();
-      const timeoutHandle = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
-      try {
-        const response = await axios.get(directUrl, {
-          params: { url },
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutHandle);
-        return response.data;
-      } catch (err) {
-        clearTimeout(timeoutHandle);
-        throw err;
-      }
+      const response = await axiosInstance.get(directUrl, {
+        params: { url },
+        timeout: API_REQUEST_TIMEOUT_MS,
+      });
+      return response.data;
     } catch (error: any) {
       if (error.response) {
         const errorMsg = error.response.data?.error || error.response.data?.message || `Server error (${error.response.status})`;
@@ -93,8 +85,7 @@ export const downloadAPI = {
 
     try {
       const directUrl = resolveEndpointUrl(endpoints.download);
-      const response = await axios.post(directUrl, payload, {
-        headers: { 'Content-Type': 'application/json' },
+      const response = await axiosInstance.post(directUrl, payload, {
         timeout: DOWNLOAD_TIMEOUT_MS,
       });
       return response.data;
@@ -108,8 +99,7 @@ export const downloadAPI = {
           useAutoFormat: true,
         };
         const directUrl = resolveEndpointUrl(endpoints.download);
-        const response = await axios.post(directUrl, autoPayload, {
-          headers: { 'Content-Type': 'application/json' },
+        const response = await axiosInstance.post(directUrl, autoPayload, {
           timeout: DOWNLOAD_TIMEOUT_MS,
         });
         return response.data;
@@ -130,8 +120,7 @@ export const downloadAPI = {
   getDownloadStatus: async (downloadId: string) => {
     try {
       const directUrl = `${resolveEndpointUrl(endpoints.status)}${downloadId}`;
-      const response = await axios.get(directUrl, {
-        headers: { 'Content-Type': 'application/json' },
+      const response = await axiosInstance.get(directUrl, {
         timeout: DOWNLOAD_TIMEOUT_MS,
       });
       return response.data;
@@ -142,22 +131,77 @@ export const downloadAPI = {
       throw error;
     }
   },
+
+  getChannelPosts: async (url: string, page: number = 1) => {
+    try {
+      const directUrl = resolveEndpointUrl('/api/channel-posts');
+      const response = await axiosInstance.post(directUrl, { url, page }, {
+        timeout: API_REQUEST_TIMEOUT_MS,
+      });
+      return response.data;
+    } catch (error: any) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || `Failed to fetch channel posts (${error.response.status})`);
+      }
+      throw error;
+    }
+  },
+
+  getRemainingDownloads: async () => {
+    try {
+      const directUrl = resolveEndpointUrl('/api/downloads/remaining');
+      const response = await axiosInstance.get(directUrl, { timeout: 5000 });
+      return response.data;
+    } catch {
+      return { freemiumEnabled: false, total: 10, used: 0, remaining: 10 };
+    }
+  },
 };
 
-// User API
+// User API — all calls use axiosInstance so the Railway fallback applies on network errors
 export const userAPI = {
   login: async (credentials: { email: string; password: string }) => {
-    const response = await apiClient.post('/auth/login', credentials);
+    const response = await axiosInstance.post('/api/auth/login', credentials);
     return response.data;
   },
 
   register: async (userData: { username: string; email: string; password: string }) => {
-    const response = await apiClient.post('/auth/register', userData);
+    const response = await axiosInstance.post('/api/auth/register', userData);
     return response.data;
   },
 
   getUserProfile: async () => {
-    const response = await apiClient.get('/user/profile');
+    const response = await axiosInstance.get('/api/auth/me');
+    return response.data;
+  },
+
+  verifyEmail: async (data: { email: string; code: string }) => {
+    const response = await axiosInstance.post('/api/auth/verify', data);
+    return response.data;
+  },
+
+  resendVerification: async (email: string) => {
+    const response = await axiosInstance.post('/api/auth/resend-verification', { email });
+    return response.data;
+  },
+
+  logout: async () => {
+    const response = await axiosInstance.post('/api/auth/logout');
+    return response.data;
+  },
+
+  changePassword: async (data: { oldPassword: string; newPassword: string }) => {
+    const response = await axiosInstance.post('/api/auth/change-password', data);
+    return response.data;
+  },
+
+  forgotPassword: async (email: string) => {
+    const response = await axiosInstance.post('/api/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  resetPassword: async (data: { email: string; resetToken: string; newPassword: string }) => {
+    const response = await axiosInstance.post('/api/auth/reset-password', data);
     return response.data;
   },
 };
@@ -234,6 +278,29 @@ export const mockAPI = {
       }, 800);
     });
   },
+};
+
+// ── Admin API — all routes require admin role JWT (enforced server-side) ──
+export const adminAPI = {
+  getUsers: () => axiosInstance.get('/api/auth/admin/users'),
+  setUserRole: (email: string, role: string) =>
+    axiosInstance.post('/api/auth/admin/users/role', { email, role }),
+  blockUser: (email: string, blocked: boolean) =>
+    axiosInstance.post('/api/auth/admin/users/block', { email, blocked }),
+  clearUserLogs: (email: string) =>
+    axiosInstance.delete(`/api/auth/admin/users/${encodeURIComponent(email)}/logs`),
+  clearAllLogs: () => axiosInstance.delete('/api/auth/admin/logs'),
+  getDbStats: () => axiosInstance.get('/api/auth/admin/stats'),
+};
+
+// ── Bug Report API ───────────────────────────────────────────────────────
+export const bugAPI = {
+  submit: (errorText: string, imageBase64?: string) =>
+    axiosInstance.post('/api/bugs', { errorText, imageBase64 }),
+  list: () => axiosInstance.get('/api/bugs'),
+  getReport: (id: number) => axiosInstance.get(`/api/bugs/${id}`),
+  updateStatus: (id: number, status: string) =>
+    axiosInstance.patch(`/api/bugs/${id}`, { status }),
 };
 
 export default apiClient;
