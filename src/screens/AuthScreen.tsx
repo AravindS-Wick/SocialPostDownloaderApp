@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Text, TextInput, Button, useTheme, IconButton, SegmentedButtons } from 'react-native-paper';
+import { Text, TextInput, Button, useTheme, IconButton, SegmentedButtons, Checkbox } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
@@ -40,6 +40,7 @@ export default function AuthScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [emailTouched, setEmailTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
+  const [termsAgreed, setTermsAgreed] = useState(false);
 
   const emailError = emailTouched && email && !EMAIL_REGEX.test(email.trim())
     ? 'Enter a valid email address (e.g. you@example.com)'
@@ -248,11 +249,35 @@ export default function AuthScreen() {
           <Text style={styles.fieldError}>Passwords do not match</Text>
         ) : null}
 
+        {/* Terms agreement — register only */}
+        {mode === 'register' && (
+          <View style={styles.termsRow}>
+            <Checkbox
+              status={termsAgreed ? 'checked' : 'unchecked'}
+              onPress={() => setTermsAgreed(!termsAgreed)}
+              color={theme.colors.primary}
+            />
+            <Text
+              variant="bodySmall"
+              style={[styles.termsLabel, { color: theme.colors.onSurfaceVariant }]}
+              onPress={() => setTermsAgreed(!termsAgreed)}
+            >
+              I agree to the{' '}
+              <Text style={{ color: theme.colors.primary }} onPress={() => (navigation as any).navigate('Legal', { docKey: 'privacy' })}>Privacy Policy</Text>
+              {', '}
+              <Text style={{ color: theme.colors.primary }} onPress={() => (navigation as any).navigate('Legal', { docKey: 'terms' })}>Terms of Service</Text>
+              {', and '}
+              <Text style={{ color: theme.colors.primary }} onPress={() => (navigation as any).navigate('Legal', { docKey: 'conditions' })}>Terms & Conditions</Text>
+              .
+            </Text>
+          </View>
+        )}
+
         <Button
           mode="contained"
           onPress={mode === 'login' ? handleLogin : handleRegister}
           loading={loading}
-          disabled={loading}
+          disabled={loading || (mode === 'register' && !termsAgreed)}
           style={styles.submitButton}
           contentStyle={styles.submitButtonContent}
           labelStyle={styles.submitButtonLabel}
@@ -307,6 +332,16 @@ const styles = StyleSheet.create({
   forgotPasswordButton: {
     marginTop: 12,
     alignSelf: 'flex-end',
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  termsLabel: {
+    flex: 1,
+    lineHeight: 20,
+    paddingTop: 6,
   },
   forgotPasswordButtonLabel: {
     fontSize: 12,

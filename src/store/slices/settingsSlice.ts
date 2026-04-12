@@ -10,6 +10,9 @@ export interface SettingsState {
   darkMode: boolean;
   downloadPath: string;
   safFolderUri: string | null; // Android SAF folder URI — persisted after first pick
+  termsAccepted: boolean;       // User has accepted Privacy Policy + ToS + T&C
+  termsAcceptedAt: string | null; // ISO timestamp of acceptance
+  termsVersion: string;         // Version of terms accepted — bump to re-prompt on updates
 }
 
 const initialState: SettingsState = {
@@ -20,6 +23,9 @@ const initialState: SettingsState = {
   darkMode: false,
   downloadPath: 'SocialSaver',
   safFolderUri: null,
+  termsAccepted: false,
+  termsAcceptedAt: null,
+  termsVersion: '1.0',
 };
 
 const settingsSlice = createSlice({
@@ -53,6 +59,11 @@ const settingsSlice = createSlice({
     setSafFolderUri: (state, action: PayloadAction<string | null>) => {
       state.safFolderUri = action.payload;
     },
+    acceptTerms: (state) => {
+      state.termsAccepted = true;
+      state.termsAcceptedAt = new Date().toISOString();
+      state.termsVersion = '1.0'; // must match CURRENT_TERMS_VERSION in AppNavigator
+    },
     resetSettings: () => initialState,
   },
 });
@@ -66,6 +77,7 @@ export const {
   setDownloadPath,
   setSafFolderUri,
   updateSettings,
+  acceptTerms,
   resetSettings
 } = settingsSlice.actions;
 

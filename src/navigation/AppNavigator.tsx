@@ -18,6 +18,12 @@ import BugReportScreen from '../screens/BugReportScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import TermsGateScreen from '../screens/TermsGateScreen';
+import LegalScreen from '../screens/LegalScreen';
+
+// Bump this string whenever legal docs change materially.
+// Any stored termsVersion that doesn't match will re-show the gate.
+export const CURRENT_TERMS_VERSION = '1.0';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -31,6 +37,8 @@ export type RootStackParamList = {
   ChangePassword: undefined;
   ForgotPassword: undefined;
   ResetPassword: { email?: string; resetToken?: string };
+  TermsGate: undefined;
+  Legal: { docKey: 'privacy' | 'terms' | 'conditions' | 'usage' };
 };
 
 export type MainTabParamList = {
@@ -97,12 +105,28 @@ function MainTabNavigator() {
 }
 
 export default function AppNavigator() {
+  // Gate check: must have accepted the current version of the terms.
+  const { termsAccepted, termsVersion } = useSelector(
+    (state: RootState) => state.settings,
+  );
+  const needsTermsAcceptance =
+    !termsAccepted || termsVersion !== CURRENT_TERMS_VERSION;
+
   return (
     <Stack.Navigator
       id={undefined}
-      initialRouteName="Main"
+      // If terms not accepted, open the gate first — it resets to Main on accept.
+      initialRouteName={needsTermsAcceptance ? 'TermsGate' : 'Main'}
       screenOptions={{ headerShown: false }}
     >
+      {/* ── Terms gate — shown before anything else ── */}
+      <Stack.Screen
+        name="TermsGate"
+        component={TermsGateScreen}
+        options={{ headerShown: false, gestureEnabled: false }}
+      />
+
+      {/* ── Main app ── */}
       <Stack.Screen name="Main" component={MainTabNavigator} />
       <Stack.Screen name="Download" component={DownloadScreen} options={{ headerShown: true }} />
       <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false, presentation: 'modal' }} />
@@ -112,6 +136,13 @@ export default function AppNavigator() {
       <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ headerShown: false, presentation: 'modal' }} />
+
+      {/* ── Full legal document viewer (accessible from Settings & TermsGate) ── */}
+      <Stack.Screen
+        name="Legal"
+        component={LegalScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }
