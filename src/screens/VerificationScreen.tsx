@@ -24,10 +24,10 @@ export default function VerificationScreen() {
     setSuccess('');
     try {
       await userAPI.verifyEmail({ email, code });
-      setSuccess('Email verified! You can now log in.');
+      setSuccess('Email verified! Taking you to login…');
       setTimeout(() => {
         dispatch(clearAuthError());
-        navigation.navigate('Auth' as never);
+        (navigation as any).reset({ index: 0, routes: [{ name: 'Auth', params: { initialMode: 'login' } }] });
       }, 1500);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Verification failed');
@@ -98,7 +98,7 @@ export default function VerificationScreen() {
 
         <Button
           mode="text"
-          onPress={() => navigation.navigate('Auth' as never)}
+          onPress={() => (navigation as any).reset({ index: 0, routes: [{ name: 'Auth', params: { initialMode: 'login' } }] })}
           style={styles.resendButton}
         >
           Back to Login

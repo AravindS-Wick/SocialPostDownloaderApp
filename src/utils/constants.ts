@@ -6,7 +6,7 @@ export const APP_NAME = 'SocialSaver';
 // Production API URL — from EXPO_PUBLIC_API_URL in .env
 export const RAILWAY_API: string =
   process.env.EXPO_PUBLIC_API_URL ||
-  'https://postdownloaderapi-production.up.railway.app';
+  'https://postdownloaderapi-production-b365.up.railway.app';
 
 // Resolve API URL based on environment
 const resolveApiBaseUrl = () => {

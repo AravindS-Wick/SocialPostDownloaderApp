@@ -87,15 +87,15 @@ export default function AdminRightsScreen() {
   }
 
   async function handleRemove(email: string) {
-    Alert.alert('Block User', `Block ${email}?`, [
+    Alert.alert('Delete User', `Permanently delete ${email}? This cannot be undone.`, [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Block', style: 'destructive', onPress: async () => {
+        text: 'Delete', style: 'destructive', onPress: async () => {
           try {
-            await adminAPI.blockUser(email, true);
-            setUsers(prev => prev.map(u => u.email === email ? { ...u, is_blocked: 1 } : u));
+            await adminAPI.deleteUser(email);
+            setUsers(prev => prev.filter(u => u.email !== email));
           } catch {
-            Alert.alert('Error', 'Failed to block user');
+            Alert.alert('Error', 'Failed to delete user');
           }
         }
       }

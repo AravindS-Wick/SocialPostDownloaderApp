@@ -30,7 +30,7 @@ export type RootStackParamList = {
   Download: { url?: string; platform?: string };
   History: undefined;
   Settings: undefined;
-  Auth: undefined;
+  Auth: { initialMode?: 'login' | 'register' } | undefined;
   Verification: undefined;
   AdminRights: undefined;
   BugReport: undefined;

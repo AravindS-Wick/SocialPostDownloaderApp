@@ -490,7 +490,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.signupButton}
-                  onPress={() => navigation.navigate('Auth')}
+                  onPress={() => navigation.navigate('Auth', { initialMode: 'register' })}
                 >
                   <Text style={styles.signupButtonText}>Sign Up</Text>
                 </TouchableOpacity>
