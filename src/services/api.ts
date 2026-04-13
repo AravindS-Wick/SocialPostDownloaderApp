@@ -282,15 +282,15 @@ export const mockAPI = {
 
 // ── Admin API — all routes require admin role JWT (enforced server-side) ──
 export const adminAPI = {
-  getUsers: () => axiosInstance.get('/api/auth/admin/users'),
+  getUsers: () => axiosInstance.get('/api/admin/users'),
   setUserRole: (email: string, role: string) =>
-    axiosInstance.post('/api/auth/admin/users/role', { email, role }),
+    axiosInstance.post(`/api/admin/db/approve-owner/${encodeURIComponent(email)}`, { role }),
   blockUser: (email: string, blocked: boolean) =>
-    axiosInstance.post('/api/auth/admin/users/block', { email, blocked }),
-  clearUserLogs: (email: string) =>
-    axiosInstance.delete(`/api/auth/admin/users/${encodeURIComponent(email)}/logs`),
-  clearAllLogs: () => axiosInstance.delete('/api/auth/admin/logs'),
-  getDbStats: () => axiosInstance.get('/api/auth/admin/stats'),
+    axiosInstance.post(`/api/admin/users/${encodeURIComponent(email)}/block`, { blocked }),
+  deleteUser: (email: string) =>
+    axiosInstance.delete(`/api/admin/users/${encodeURIComponent(email)}`),
+  clearAllLogs: () => axiosInstance.delete('/api/admin/db/clear'),
+  getDbStats: () => axiosInstance.get('/api/admin/db-stats'),
 };
 
 // ── Bug Report API ───────────────────────────────────────────────────────

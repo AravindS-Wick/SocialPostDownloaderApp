@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Text, TextInput, Button, useTheme, IconButton, SegmentedButtons, Checkbox } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { loginStart, loginSuccess, loginFailure, clearAuthError, setPendingVerification } from '../store/slices/authSlice';
@@ -28,11 +28,13 @@ const safeGoBack = (nav: any) => {
 
 export default function AuthScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const dispatch = useDispatch();
   const theme = useTheme();
   const { loading, error } = useSelector((state: RootState) => state.auth);
 
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const initialMode = (route.params as any)?.initialMode ?? 'login';
+  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -84,14 +86,14 @@ export default function AuthScreen() {
             role: response.user?.role ?? 'user',
           },
         }));
-        safeGoBack(navigation);
+        (navigation as any).reset({ index: 0, routes: [{ name: 'Main' }] });
       } else {
         dispatch(loginFailure(response.error || 'Login failed'));
       }
     } catch (err: any) {
       if (err?.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
         dispatch(setPendingVerification(email.trim().toLowerCase()));
-        (navigation as any).navigate('Verification');
+        (navigation as any).replace('Verification');
         return;
       }
       const msg = err?.response?.data?.error || err?.message || 'Login failed. Please try again.';
@@ -136,7 +138,7 @@ export default function AuthScreen() {
 
       if (regResponse.success) {
         dispatch(setPendingVerification(email.trim().toLowerCase()));
-        (navigation as any).navigate('Verification');
+        (navigation as any).replace('Verification');
       } else {
         dispatch(loginFailure(regResponse.message || 'Registration failed'));
       }

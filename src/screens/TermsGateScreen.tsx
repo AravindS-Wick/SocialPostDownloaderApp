@@ -213,7 +213,7 @@ export default function TermsGateScreen() {
           style={styles.acceptBtn}
           icon="check-circle"
         >
-          I Agree &amp; Continue
+          I Agree & Continue
         </Button>
       </View>
 
