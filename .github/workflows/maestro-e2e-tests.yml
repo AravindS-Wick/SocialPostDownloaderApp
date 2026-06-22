@@ -1,0 +1,62 @@
+name: Maestro E2E Tests (Mobile)
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - '.maestro/**'
+      - 'package.json'
+      - '.github/workflows/maestro-e2e-tests.yml'
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - '.maestro/**'
+      - 'package.json'
+
+jobs:
+  maestro-tests:
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Maestro CLI
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          export PATH="$PATH:$HOME/.maestro/bin"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Setup Android Emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 31
+          target: google_apis
+          arch: x86_64
+          profile: Nexus 5X
+          avd-name: Android-31
+
+      - name: Start Expo server
+        run: |
+          npm start &
+          sleep 10
+
+      - name: Run Maestro tests
+        run: |
+          export PATH="$PATH:$HOME/.maestro/bin"
+          maestro test .maestro/flows
+
+      - name: Upload Maestro logs
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: maestro-logs
+          path: ~/.maestro/logs/
