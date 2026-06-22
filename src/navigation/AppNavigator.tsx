@@ -1,8 +1,11 @@
 import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, type ViewStyle } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
+import { useTheme } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
 import type { RootState } from '../store';
 
 // Import screens
@@ -53,34 +56,96 @@ export type MainTabParamList = {
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+const GRADIENT_COLORS: [string, string] = ['#6C47FF', '#9575FF'];
+const TAB_LABELS: Record<string, string> = {
+  Home: 'Home',
+  Batch: 'Batch',
+  History: 'History',
+  Settings: 'Settings',
+  BugReport: 'Bugs',
+  AdminRights: 'Admin',
+};
+
+const TAB_ICONS: Record<string, [string, string]> = {
+  Home: ['home', 'home-outline'],
+  Batch: ['layers', 'layers-outline'],
+  History: ['time', 'time-outline'],
+  Settings: ['settings', 'settings-outline'],
+  BugReport: ['bug', 'bug-outline'],
+  AdminRights: ['shield', 'shield-outline'],
+};
+
+function CustomTabBar({ state, navigation }: any) {
+  const theme = useTheme();
+  const isDark = theme.dark;
+
+  const tabBg = isDark ? '#120D22' : '#FFFFFF';
+  const borderTop = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(108,71,255,0.1)';
+
+  return (
+    <View style={[styles.tabBar, { backgroundColor: tabBg, borderTopColor: borderTop }]}>
+      {state.routes.map((route: any, index: number) => {
+        const isFocused = state.index === index;
+        const label = TAB_LABELS[route.name] || route.name;
+        const [activeIcon, inactiveIcon] = TAB_ICONS[route.name] || ['ellipse', 'ellipse-outline'];
+
+        const onPress = () => {
+          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            onPress={onPress}
+            style={styles.tabItem}
+            activeOpacity={0.8}
+          >
+            {isFocused ? (
+              <LinearGradient
+                colors={GRADIENT_COLORS}
+                style={styles.tabActiveBackground}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Ionicons name={activeIcon as any} size={20} color="white" />
+                <Text style={styles.tabActiveLabelGradient}>{label}</Text>
+              </LinearGradient>
+            ) : (
+              <View style={styles.tabInactiveBtn}>
+                <Ionicons
+                  name={inactiveIcon as any}
+                  size={22}
+                  color={isDark ? 'rgba(255,255,255,0.4)' : 'rgba(108,71,255,0.4)'}
+                />
+                <Text
+                  style={[
+                    styles.tabInactiveLabel,
+                    { color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(108,71,255,0.5)' },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 function MainTabNavigator() {
   const user = useSelector((state: RootState) => state.auth.user);
   const role = user?.role;
 
   return (
     <Tab.Navigator
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
       id={undefined}
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: any;
-
-          if (route.name === 'Home') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Batch') {
-            iconName = focused ? 'layers' : 'layers-outline';
-          } else if (route.name === 'History') {
-            iconName = focused ? 'time' : 'time-outline';
-          } else if (route.name === 'Settings') {
-            iconName = focused ? 'settings' : 'settings-outline';
-          } else if (route.name === 'BugReport') {
-            iconName = focused ? 'bug' : 'bug-outline';
-          } else if (route.name === 'AdminRights') {
-            iconName = focused ? 'shield' : 'shield-outline';
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-      })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Batch" component={BatchScreen} />
@@ -146,3 +211,43 @@ export default function AppNavigator() {
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    flexDirection: 'row',
+    height: 70,
+    borderTopWidth: 1,
+    paddingBottom: 8,
+    paddingTop: 8,
+  },
+  tabItem: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  tabActiveBackground: {
+    flex: 1,
+    borderRadius: 12,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  tabActiveLabelGradient: {
+    color: 'white',
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  tabInactiveBtn: {
+    flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabInactiveLabel: {
+    fontSize: 10,
+    marginTop: 2,
+  },
+});
