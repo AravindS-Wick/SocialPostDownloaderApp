@@ -1,0 +1,11 @@
+appId: expo.dev.social-post-downloader-app
+platform: android # or ios, change as needed
+server:
+  port: 7001
+
+# Settings for local testing
+env:
+  # Point to your API server
+  API_URL: ${API_URL:http://localhost:2500}
+  APP_TIMEOUT: 30000
+  NETWORK_TIMEOUT: 15000

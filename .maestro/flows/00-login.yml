@@ -1,0 +1,26 @@
+appId: expo.dev.social-post-downloader-app
+name: Login Flow
+tags: [setup]
+
+steps:
+  # Check if login is needed
+  - condition:
+      visible:
+        text: "Login"
+    true:
+      - tapOn:
+          text: "Email"
+      - pasteText: "test@example.com"
+
+      - tapOn:
+          text: "Password"
+      - pasteText: "Test@1234"
+
+      - tapOn:
+          text: "Login"
+
+      - wait:
+          seconds: 5
+    false:
+      - action: log
+        message: "Already logged in"

@@ -1,0 +1,32 @@
+appId: expo.dev.social-post-downloader-app
+name: Happy Path - Instagram Reel Download
+tags: [smoke, critical]
+
+steps:
+  - wait:
+      seconds: 3
+
+  - runFlow: ./flows/00-login.yml
+    continueOnError: true
+
+  - wait:
+      seconds: 2
+
+  - tapOn:
+      id: "urlInput"
+  - pasteText: "https://www.instagram.com/reel/ABC123DEF456/"
+
+  - wait:
+      seconds: 5
+
+  - assertVisible:
+      text: "Preview"
+
+  - tapOn:
+      id: "downloadButton"
+
+  - wait:
+      seconds: 10
+
+  - assertVisible:
+      text: "Download started"
