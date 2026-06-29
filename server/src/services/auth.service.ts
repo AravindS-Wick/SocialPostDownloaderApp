@@ -19,9 +19,9 @@ export class AuthService {
             id: '1',
             email,
             name: 'Test User',
-            connectedPlatforms: []
+            platforms: []
         };
-        const payload: JwtPayload = { userId: user.id };
+        const payload: JwtPayload = { userId: user.id, email: user.email };
         const token = this.fastify.jwt.sign(payload);
         return { token, user };
     }
@@ -47,6 +47,10 @@ export class AuthService {
     }
 
     async checkPlatformLogin(platform: string): Promise<boolean> {
+        const platformConfig = this.config.platforms[platform.toLowerCase()];
+        if (!platformConfig) {
+            throw new Error(`Unsupported platform: ${platform}`);
+        }
         // TODO: Check if the platform is connected and token is valid
         return false;
     }
@@ -90,6 +94,10 @@ export class AuthService {
     }
 
     async disconnectPlatform(platform: string): Promise<void> {
+        const platformConfig = this.config.platforms[platform.toLowerCase()];
+        if (!platformConfig) {
+            throw new Error(`Unsupported platform: ${platform}`);
+        }
         // TODO: Remove platform connection and tokens
     }
 

@@ -1,5 +1,6 @@
 import fastify, { type FastifyRequest, type FastifyReply, type HookHandlerDoneFunction } from 'fastify';
 import cors from '@fastify/cors';
+import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import { TwitterApi } from 'twitter-api-v2';
@@ -20,7 +21,9 @@ import fastifyStatic from '@fastify/static';
 dotenv.config();
 
 const execAsync = util.promisify(exec);
-const app = fastify({
+
+export const build = async () => {
+    const app = fastify({
     logger: {
         level: 'info',
         transport: {
@@ -46,14 +49,23 @@ app.addHook('onResponse', (request: FastifyRequest, reply: FastifyReply, done: H
 
 // Enable CORS with more specific options
 app.register(cors, {
-    origin: [
-        'http://localhost:2000',
-        'http://localhost:8081',
-        'http://localhost:19006', // Add web client origin
-        'exp://localhost:2100',
-        'exp://127.0.0.1:2100',
-        'exp://127.0.0.1:8081'
-    ],
+    origin: (origin, cb) => {
+        const allowedOrigins = [
+            'http://localhost:2000',
+            'http://localhost:8081',
+            'http://localhost:19006',
+            'exp://localhost:2100',
+            'exp://127.0.0.1:2100',
+            'exp://127.0.0.1:8081'
+        ];
+        if (!origin || allowedOrigins.includes(origin)) {
+            cb(null, true);
+            return;
+        }
+        const error = new Error('Forbidden');
+        (error as any).statusCode = 403;
+        cb(error, false);
+    },
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Content-Disposition', 'Accept', 'Origin', 'X-Requested-With'],
     exposedHeaders: ['Content-Disposition', 'Content-Length', 'Content-Type'],
@@ -61,6 +73,38 @@ app.register(cors, {
     preflightContinue: false,
     optionsSuccessStatus: 204,
     maxAge: 86400 // 24 hours
+});
+
+// Register rate limit
+app.register(rateLimit, {
+    max: 100,
+    timeWindow: '1 minute'
+});
+
+// Global Error Handler
+app.setErrorHandler((error, request, reply) => {
+    if (error.statusCode === 429) {
+        return reply.code(429).send({ error: 'Too Many Requests' });
+    }
+    if (error.message === 'Forbidden' || error.statusCode === 403) {
+        return reply.code(403).send({ error: 'Forbidden' });
+    }
+    if (error.validation) {
+        return reply.code(400).send({
+            error: 'Validation Error',
+            message: error.message
+        });
+    }
+    if (error.statusCode === 401) {
+        return reply.code(401).send({ error: 'Unauthorized' });
+    }
+    
+    app.log.error(error);
+    return reply.code(500).send({ error: 'Internal Server Error' });
+});
+
+app.setNotFoundHandler((request, reply) => {
+    reply.code(404).send({ error: 'Not Found' });
 });
 
 // Register JWT
@@ -559,32 +603,10 @@ app.get('/', async (request, reply) => {
 });
 
 // Health check route
-app.get('/health', async () => {
-    return { status: 'ok' };
-});
+    app.get('/health', async () => {
+        return { status: 'ok' };
+    });
 
-// Start server
-const start = async () => {
-    try {
-        await app.listen({ port: 2500, host: '0.0.0.0' });
-        console.log('Server is running on port 2500');
-    } catch (err) {
-        app.log.error(err);
-        process.exit(1);
-    }
+    return app;
 };
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-    app.log.error('Uncaught Exception:', err);
-    process.exit(1);
-});
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err) => {
-    app.log.error('Unhandled Rejection:', err);
-    process.exit(1);
-});
-
-start();
 

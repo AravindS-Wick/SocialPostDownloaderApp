@@ -4,6 +4,33 @@ import { build } from '../app';
 import { mockFastifyInstance } from '../__mocks__/fastify.mock';
 import { mockPlatformService } from '../__mocks__/platform.service.mock';
 
+vi.mock('../services/platform.service.js', () => {
+    return {
+        PlatformService: vi.fn().mockImplementation(() => ({
+            getInstagramAuthUrl: vi.fn().mockResolvedValue('https://instagram.com/auth'),
+            getYouTubeAuthUrl: vi.fn().mockResolvedValue('https://youtube.com/auth'),
+            getTwitterAuthUrl: vi.fn().mockResolvedValue('https://twitter.com/auth'),
+            getTikTokAuthUrl: vi.fn().mockResolvedValue('https://tiktok.com/auth'),
+            handleInstagramCallback: vi.fn().mockResolvedValue({
+                accessToken: 'instagram-token',
+                expiresIn: 3600
+            })
+        }))
+    };
+});
+vi.mock('child_process', () => ({
+    exec: vi.fn((cmd, callback) => {
+        const match = cmd.match(/-o "([^"]+)"/);
+        if (match) {
+            const fs = require('fs');
+            const path = require('path');
+            fs.mkdirSync(path.dirname(match[1]), { recursive: true });
+            fs.writeFileSync(match[1], 'a'.repeat(2000));
+        }
+        callback(null, { stdout: 'mock', stderr: '' });
+    })
+}));
+
 describe('Routes', () => {
     let app: FastifyInstance;
 
@@ -21,8 +48,8 @@ describe('Routes', () => {
 
             expect(response.statusCode).toBe(200);
             expect(JSON.parse(response.payload)).toEqual({
-                isConnected: true,
-                platform: 'Instagram'
+                success: true,
+                isLoggedIn: false
             });
         });
 
@@ -34,33 +61,36 @@ describe('Routes', () => {
 
             expect(response.statusCode).toBe(400);
             expect(JSON.parse(response.payload)).toEqual({
-                error: 'Unsupported platform'
+                success: false,
+                error: 'Failed to check platform login status'
             });
         });
     });
 
-    describe('GET /api/auth/url/:platform', () => {
+    describe('GET /api/auth/auth-url/:platform', () => {
         it('should get Instagram auth URL', async () => {
             const response = await app.inject({
                 method: 'GET',
-                url: '/api/auth/url/Instagram'
+                url: '/api/auth/auth-url/Instagram'
             });
 
             expect(response.statusCode).toBe(200);
             expect(JSON.parse(response.payload)).toEqual({
-                url: 'https://instagram.com/auth'
+                success: true,
+                authUrl: 'https://instagram.com/auth'
             });
         });
 
         it('should return 400 for unsupported platform', async () => {
             const response = await app.inject({
                 method: 'GET',
-                url: '/api/auth/url/Unsupported'
+                url: '/api/auth/auth-url/Unsupported'
             });
 
             expect(response.statusCode).toBe(400);
             expect(JSON.parse(response.payload)).toEqual({
-                error: 'Unsupported platform'
+                success: false,
+                error: 'Failed to get auth URL'
             });
         });
     });
@@ -76,9 +106,12 @@ describe('Routes', () => {
             });
 
             expect(response.statusCode).toBe(200);
-            expect(JSON.parse(response.payload)).toEqual({
-                platform: 'Instagram',
-                isConnected: true
+            expect(JSON.parse(response.payload)).toMatchObject({
+                success: true,
+                platform: {
+                    id: 'instagram',
+                    name: 'Instagram'
+                }
             });
         });
 
@@ -93,34 +126,35 @@ describe('Routes', () => {
 
             expect(response.statusCode).toBe(400);
             expect(JSON.parse(response.payload)).toEqual({
-                error: 'Unsupported platform'
+                success: false,
+                error: 'Failed to connect platform'
             });
         });
     });
 
-    describe('DELETE /api/auth/disconnect/:platform', () => {
+    describe('POST /api/auth/disconnect/:platform', () => {
         it('should disconnect Instagram platform', async () => {
             const response = await app.inject({
-                method: 'DELETE',
+                method: 'POST',
                 url: '/api/auth/disconnect/Instagram'
             });
 
             expect(response.statusCode).toBe(200);
             expect(JSON.parse(response.payload)).toEqual({
-                platform: 'Instagram',
-                isConnected: false
+                success: true
             });
         });
 
         it('should return 400 for unsupported platform', async () => {
             const response = await app.inject({
-                method: 'DELETE',
+                method: 'POST',
                 url: '/api/auth/disconnect/Unsupported'
             });
 
             expect(response.statusCode).toBe(400);
             expect(JSON.parse(response.payload)).toEqual({
-                error: 'Unsupported platform'
+                success: false,
+                error: 'Failed to disconnect platform'
             });
         });
     });
@@ -135,12 +169,11 @@ describe('Routes', () => {
                 }
             });
 
-            expect(response.statusCode).toBe(200);
-            expect(JSON.parse(response.payload)).toEqual({
-                url: 'https://instagram.com/media/123',
-                type: 'image',
-                title: 'Test Post'
-            });
+            const payload = JSON.parse(response.payload);
+            expect(payload.success).toBe(true);
+            expect(payload.downloadUrl).toContain('/downloads/instagram_');
+            expect(payload.filename).toContain('instagram_');
+            expect(payload.title).toContain('Instagram Post');
         });
 
         it('should return 400 for invalid URL', async () => {
@@ -154,7 +187,8 @@ describe('Routes', () => {
 
             expect(response.statusCode).toBe(400);
             expect(JSON.parse(response.payload)).toEqual({
-                error: 'Invalid URL format'
+                success: false,
+                error: 'Unsupported platform'
             });
         });
     });

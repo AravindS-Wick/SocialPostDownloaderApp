@@ -1,0 +1,53 @@
+appId: com.socialmediadownloader.app
+name: Error Handling - Invalid URL
+tags: [smoke]
+
+steps:
+  - wait:
+      seconds: 3
+
+  - runFlow: ./flows/00-login.yml
+    continueOnError: true
+
+  - tapOn:
+      id: "urlInput"
+  - pasteText: "not a valid url"
+
+  - tapOn:
+      id: "analyzeButton"
+
+  - wait:
+      seconds: 3
+
+  - assertVisible:
+      text: "Invalid URL"
+
+  ---
+
+  - tapOn:
+      id: "urlInput"
+  - clearTextField
+
+  - tapOn:
+      id: "analyzeButton"
+
+  - wait:
+      seconds: 2
+
+  - assertVisible:
+      text: "Please enter a URL"
+
+  ---
+
+  - tapOn:
+      id: "urlInput"
+  - pasteText: "https://www.example.com/some-random-page"
+
+  - tapOn:
+      id: "analyzeButton"
+
+  - wait:
+      seconds: 5
+
+  - assertVisible:
+      text: "Unsupported platform"

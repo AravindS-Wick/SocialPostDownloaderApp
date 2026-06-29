@@ -1,0 +1,38 @@
+appId: com.socialmediadownloader.app
+name: Happy Path - YouTube Download
+tags: [smoke, critical]
+
+steps:
+  - tapOn:
+      point: { x: 50, y: 50 }
+  - wait:
+      seconds: 3
+
+  - runFlow: ./flows/00-login.yml
+    continueOnError: true
+
+  - wait:
+      seconds: 2
+  - assertVisible:
+      text: "Home"
+
+  - tapOn:
+      id: "urlInput"
+  - pasteText: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+  - wait:
+      seconds: 5
+
+  - assertVisible:
+      text: "Preview"
+  - assertVisible:
+      text: "1080p"
+
+  - tapOn:
+      id: "downloadButton"
+
+  - wait:
+      seconds: 10
+
+  - assertVisible:
+      text: "Download started"
