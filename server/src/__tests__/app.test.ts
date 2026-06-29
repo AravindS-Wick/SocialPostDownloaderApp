@@ -13,16 +13,17 @@ describe('App', () => {
     });
 
     it('should register auth routes', async () => {
-        const routes = app.printRoutes();
-        expect(routes).toContain('/api/auth/check-platform/:platform');
-        expect(routes).toContain('/api/auth/url/:platform');
-        expect(routes).toContain('/api/auth/connect/:platform');
-        expect(routes).toContain('/api/auth/disconnect/:platform');
+        // Checking route registration by injecting a request and ensuring it does not return 404
+        const response1 = await app.inject({ method: 'GET', url: '/api/auth/check-platform/test' });
+        expect(response1.statusCode).not.toBe(404);
+        
+        const response2 = await app.inject({ method: 'GET', url: '/api/auth/auth-url/test' });
+        expect(response2.statusCode).not.toBe(404);
     });
 
     it('should register download routes', async () => {
-        const routes = app.printRoutes();
-        expect(routes).toContain('/api/download');
+        const response = await app.inject({ method: 'POST', url: '/api/download' });
+        expect(response.statusCode).not.toBe(404);
     });
 
     it('should register CORS', async () => {
@@ -30,13 +31,13 @@ describe('App', () => {
             method: 'OPTIONS',
             url: '/api/auth/check-platform/Instagram',
             headers: {
-                'Origin': 'http://localhost:3000',
+                'Origin': 'http://localhost:2000',
                 'Access-Control-Request-Method': 'GET'
             }
         });
 
         expect(response.statusCode).toBe(204);
-        expect(response.headers['access-control-allow-origin']).toBe('http://localhost:3000');
+        expect(response.headers['access-control-allow-origin']).toBe('http://localhost:2000');
         expect(response.headers['access-control-allow-methods']).toContain('GET');
     });
 

@@ -69,6 +69,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     // Get current user
     fastify.get('/me', async (request, reply) => {
         try {
+            await request.jwtVerify();
             // TODO: Get actual user ID from JWT token
             const userId = '1';
             const user = await authService.getCurrentUser(userId);
