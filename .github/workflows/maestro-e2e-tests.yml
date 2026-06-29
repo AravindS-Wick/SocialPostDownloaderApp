@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Setup Android Emulator
+      - name: Run Maestro tests in Android Emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 31
@@ -43,16 +43,12 @@ jobs:
           arch: x86_64
           profile: Nexus 5X
           avd-name: Android-31
-
-      - name: Start Expo server
-        run: |
-          npm start &
-          sleep 10
-
-      - name: Run Maestro tests
-        run: |
-          export PATH="$PATH:$HOME/.maestro/bin"
-          maestro test .maestro/flows
+          script: |
+            export PATH="$PATH:$HOME/.maestro/bin"
+            npm run start:server &
+            npm run android &
+            sleep 180
+            maestro test .maestro/flows
 
       - name: Upload Maestro logs
         if: failure()
