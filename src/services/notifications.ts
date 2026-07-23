@@ -1,14 +1,22 @@
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-// Configure notifications
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Check if we're running in Expo Go
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Configure notifications handler only if not in Expo Go or on web
+if (!isExpoGo || Platform.OS === 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 export interface NotificationContent {
   title: string;
@@ -24,6 +32,12 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
   if (Platform.OS === 'web') {
     // Web doesn't need permissions for notifications
     return true;
+  }
+
+  // Show warning if using Expo Go with SDK 53+
+  if (isExpoGo) {
+    console.warn('Push notifications are not fully supported in Expo Go with SDK 53+');
+    return false;
   }
 
   try {
@@ -56,9 +70,31 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
  */
 export const sendNotification = async (content: NotificationContent): Promise<string | null> => {
   try {
+    // For web, use browser notifications if available
+    if (Platform.OS === 'web') {
+      if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          new Notification(content.title, { body: content.body });
+          return 'web-notification';
+        }
+      }
+      return null;
+    }
+
+    // Show warning if using Expo Go with SDK 53+
+    if (isExpoGo) {
+      Alert.alert(
+        'Notification Limitation',
+        'Push notifications are not supported in Expo Go with SDK 53+. Please use a development build for full functionality.',
+        [{ text: 'OK' }]
+      );
+      return null;
+    }
+
     // Ensure we have permission first
     const hasPermission = await requestNotificationPermissions();
-    if (!hasPermission && Platform.OS !== 'web') {
+    if (!hasPermission) {
       console.log('Notification permission not granted');
       return null;
     }

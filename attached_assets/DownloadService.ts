@@ -18,7 +18,7 @@ export interface DownloadProgress {
   bytesWritten: number;
   contentLength: number;
   status: 'idle' | 'downloading' | 'completed' | 'failed';
-  error?: string;
+  error?: string | undefined;
 }
 
 export interface DownloadResult {

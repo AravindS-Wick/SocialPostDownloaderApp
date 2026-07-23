@@ -1,0 +1,9 @@
+/node_modules/
+/.env
+/.env.local
+/SocialMediaDownloader 5/
+/server/
+
+.DS_Store
+.expo/
+.vscode/

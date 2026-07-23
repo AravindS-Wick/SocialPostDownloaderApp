@@ -1,10 +1,10 @@
 {
   "expo": {
     "name": "Social Media Downloader",
-    "slug": "social-media-downloader",
+    "slug": "social-media-downloader-v2",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/app-icon.png",
+    "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/app-icon.png",
       "resizeMode": "contain",
@@ -13,25 +13,31 @@
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.socialmediadownloader.app"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/app-icon.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#3498db"
       },
       "package": "com.socialmediadownloader.app",
       "permissions": [
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "CAMERA"
+        "READ_MEDIA_IMAGES", "READ_MEDIA_VIDEO", "READ_MEDIA_AUDIO", "WRITE_EXTERNAL_STORAGE", "READ_EXTERNAL_STORAGE", "ACCESS_MEDIA_LOCATION", "POST_NOTIFICATIONS"
       ]
     },
     "web": {
       "favicon": "./assets/app-icon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a053b56a-883b-4fa0-b83c-6518a1a8cb62"
+      }
+    },
+    "owner": "rovamaw825"
   }
 }

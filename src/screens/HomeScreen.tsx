@@ -139,78 +139,522 @@ export default function HomeScreen() {
     setPlatform(newPlatform);
   };
 
-  const handleDownload = () => {
-    if (!url.trim()) return;
+  // const handleDownload = async () => {
+  //   if (!url.trim()) return;
     
-    setLoading(true);
-    setProgress(0);
+  //   setLoading(true);
+  //   setProgress(0);
     
-    // Simulate download progress
-    const progressInterval = setInterval(() => {
-      setProgress((prevProgress) => {
-        const newProgress = prevProgress + (Math.random() * 10);
-        if (newProgress >= 100) {
-          clearInterval(progressInterval);
-          setTimeout(() => {
-            setLoading(false);
-            // Add to history
-            const newDownload = {
-              id: Date.now().toString(),
-              title: `Downloaded ${downloadType} from ${platform}`,
-              url: url,
-              thumbnail: platform === 'youtube' 
-                ? 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg'
-                : 'https://source.unsplash.com/random/300x200/?nature',
-              platform: platform,
-              type: downloadType,
-              quality: quality,
-              size: downloadType === 'video' ? '24.5 MB' : '3.2 MB',
-              createdAt: new Date().toISOString(),
-            };
-            setDownloadHistory([newDownload, ...downloadHistory]);
+  //   try {
+  //     // Import the downloadAPI from services
+  //     const { downloadAPI } = await import('../services/api');
+      
+  //     // Start download process with real API call
+  //     const downloadOptions = {
+  //       url: url,
+  //       type: downloadType as 'video' | 'audio' | 'image',
+  //       quality: quality,
+  //       useAutoFormat: true
+  //     };
+      
+  //     console.log('Starting download with options:', downloadOptions);
+      
+  //     // Call the API to start download
+  //     const downloadResponse = await downloadAPI.downloadMedia(downloadOptions);
+  //     console.log('Download initiated:', downloadResponse);
+      
+  //     // Setup progress tracking
+  //     let downloadProgress = 0;
+  //     const progressInterval = setInterval(async () => {
+  //       try {
+  //         // If download ID is available, check status
+  //         if (downloadResponse && downloadResponse.id) {
+  //           const statusResponse = await downloadAPI.getDownloadStatus(downloadResponse.id);
+  //           console.log('Download status:', statusResponse);
             
-            // Show success feedback
-            alert(`Successfully downloaded ${downloadType} in ${quality} quality!`);
-          }, 500);
-          return 100;
-        }
-        return newProgress;
-      });
-    }, 200);
-  };
+  //           if (statusResponse && statusResponse.progress) {
+  //             downloadProgress = statusResponse.progress;
+  //             setProgress(downloadProgress);
+              
+  //             // If complete
+  //             if (downloadProgress >= 100 || statusResponse.status === 'completed') {
+  //               clearInterval(progressInterval);
+  //               setLoading(false);
+                
+  //               // Add to history with actual data
+  //               const newDownload = {
+  //                 id: downloadResponse.id || Date.now().toString(),
+  //                 title: statusResponse.title || `Downloaded ${downloadType} from ${platform}`,
+  //                 url: url,
+  //                 thumbnail: statusResponse.thumbnail || (platform === 'youtube' 
+  //                   ? 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg'
+  //                   : 'https://source.unsplash.com/random/300x200/?nature'),
+  //                 platform: platform,
+  //                 type: downloadType,
+  //                 quality: quality,
+  //                 size: statusResponse.fileSize || (downloadType === 'video' ? '24.5 MB' : '3.2 MB'),
+  //                 createdAt: new Date().toISOString(),
+  //                 filePath: statusResponse.filePath || null
+  //               };
+                
+  //               setDownloadHistory([newDownload, ...downloadHistory]);
+                
+  //               // Show success feedback with actual file path if available
+  //               Alert.alert(
+  //                 "Download Complete", 
+  //                 `Successfully downloaded ${downloadType} in ${quality} quality!\n${
+  //                   statusResponse.filePath ? `Saved to: ${statusResponse.filePath}` : ''
+  //                 }`,
+  //                 [{ text: "OK" }]
+  //               );
+  //             }
+  //           }
+  //         } else {
+  //           // Fallback for when we don't have a proper download ID
+  //           downloadProgress += (Math.random() * 10);
+  //           if (downloadProgress >= 100) {
+  //             clearInterval(progressInterval);
+  //             setLoading(false);
+  //             setProgress(100);
+              
+  //             // Add to history
+  //             const newDownload = {
+  //               id: Date.now().toString(),
+  //               title: `Downloaded ${downloadType} from ${platform}`,
+  //               url: url,
+  //               thumbnail: platform === 'youtube' 
+  //                 ? 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg'
+  //                 : 'https://source.unsplash.com/random/300x200/?nature',
+  //               platform: platform,
+  //               type: downloadType,
+  //               quality: quality,
+  //               size: downloadType === 'video' ? '24.5 MB' : '3.2 MB',
+  //               createdAt: new Date().toISOString(),
+  //             };
+              
+  //             setDownloadHistory([newDownload, ...downloadHistory]);
+              
+  //             // Show success feedback
+  //             Alert.alert(
+  //               "Download Complete", 
+  //               `Successfully downloaded ${downloadType} in ${quality} quality!`,
+  //               [{ text: "OK" }]
+  //             );
+  //           } else {
+  //             setProgress(downloadProgress);
+  //           }
+  //         }
+  //       } catch (error) {
+  //         console.error('Error checking download status:', error);
+  //         // Continue with fallback progress simulation
+  //         downloadProgress += (Math.random() * 5);
+  //         setProgress(Math.min(downloadProgress, 99)); // Cap at 99% if error
+  //       }
+  //     }, 1000);
+  //   } catch (error) {
+  //     console.error('Download error:', error);
+  //     setLoading(false);
+  //     setProgress(0);
+  //     Alert.alert(
+  //       "Download Failed", 
+  //       "There was an error downloading your content. Please try again.",
+  //       [{ text: "OK" }]
+  //     );
+  //   }
+  // };
 
-  const handleAnalyze = () => {
+
+//   const handleDownload = async () => {
+//   if (!url.trim()) return;
+  
+//   setLoading(true);
+//   setProgress(0);
+  
+//   try {
+//     // Import the downloadAPI from services
+//     const { downloadAPI } = await import('../services/api');
+    
+//     // Start download process with real API call
+//     const downloadOptions = {
+//       url: url,
+//       type: downloadType as 'video' | 'audio' | 'image',
+//       quality: quality,
+//       useAutoFormat: true
+//     };
+    
+//     console.log('Starting download with options:', downloadOptions);
+    
+//     // Call the API to start download
+//     const downloadResponse = await downloadAPI.downloadMedia(downloadOptions);
+//     console.log('Download initiated:', downloadResponse);
+    
+//     // Check if download was successful
+//     if (downloadResponse && downloadResponse.success) {
+//       // Since your API returns the download immediately, simulate progress quickly
+//       let downloadProgress = 0;
+//       const progressInterval = setInterval(() => {
+//         downloadProgress += 20; // Increment by 20% each time
+//         setProgress(downloadProgress);
+        
+//         if (downloadProgress >= 100) {
+//           clearInterval(progressInterval);
+//           setLoading(false);
+          
+//           // Create download history entry with actual response data
+//           const newDownload = {
+//             id: Date.now().toString(), // Generate a unique ID
+//             title: downloadResponse.title || `Downloaded ${downloadType} from ${platform}`,
+//             url: url,
+//             thumbnail: downloadResponse.thumbnail || (platform === 'youtube' 
+//               ? 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg'
+//               : 'https://source.unsplash.com/random/300x200/?nature'),
+//             platform: platform,
+//             type: downloadType,
+//             quality: quality,
+//             size: '24.5 MB', // You might want to get actual file size
+//             createdAt: new Date().toISOString(),
+//             filePath: downloadResponse.downloadUrl,
+//             filename: downloadResponse.filename
+//           };
+          
+//           setDownloadHistory([newDownload, ...downloadHistory]);
+          
+//           // Show success feedback with download info
+//           Alert.alert(
+//             "Download Complete", 
+//             `Successfully downloaded "${downloadResponse.title || 'content'}" in ${quality} quality!\nFile: ${downloadResponse.filename}`,
+//             [
+//               { text: "OK" },
+//               {
+//                 text: "Open File Location",
+//                 onPress: () => {
+//                   // You could implement file opening logic here
+//                   console.log('Open file:', downloadResponse.downloadUrl);
+//                 }
+//               }
+//             ]
+//           );
+//         }
+//       }, 500); // Update every 500ms for a 2.5 second total progress
+      
+//     } else {
+//       // Handle failed download
+//       setLoading(false);
+//       setProgress(0);
+//       Alert.alert(
+//         "Download Failed", 
+//         downloadResponse?.message || "The download could not be completed. Please try again.",
+//         [{ text: "OK" }]
+//       );
+//     }
+    
+//   } catch (error) {
+//     console.error('Download error:', error);
+//     setLoading(false);
+//     setProgress(0);
+    
+//     // More specific error handling
+//     let errorMessage = "There was an error downloading your content. Please try again.";
+    
+//     if (error.response) {
+//       // Server responded with error status
+//       errorMessage = `Server error: ${error.response.status}. ${error.response.data?.message || 'Please try again.'}`;
+//     } else if (error.request) {
+//       // Network error
+//       errorMessage = "Network error. Please check your connection and try again.";
+//     } else if (error.message.includes('timeout')) {
+//       errorMessage = "Download timeout. The file might be too large or the server is busy.";
+//     }
+    
+//     Alert.alert(
+//       "Download Failed", 
+//       errorMessage,
+//       [{ text: "OK" }]
+//     );
+//   }
+// };
+
+// const handleDownload = async () => {
+//   if (!url.trim()) return;
+  
+//   setLoading(true);
+//   setProgress(0);
+  
+//   try {
+//     // Import the DownloadService
+//     const DownloadService = (await import('../services/DownloadService')).default;
+    
+//     const downloadOptions = {
+//       url: url,
+//       type: downloadType as 'video' | 'audio' | 'image',
+//       quality: quality,
+//       platform: platform,
+//       useAutoFormat: true,
+//       saveLocation: 'media_library' as const
+//     };
+    
+//     console.log('Starting download with options:', downloadOptions);
+    
+//     // Use DownloadService instead of direct API call
+//     const result = await DownloadService.downloadContent(
+//       downloadOptions,
+//       (progressData) => {
+//         setProgress(progressData.progress);
+//       }
+//     );
+    
+//     setLoading(false);
+    
+//     if (result.success) {
+//       const newDownload = {
+//         id: Date.now().toString(),
+//         title: result.metadata?.title || `Downloaded ${downloadType} from ${platform}`,
+//         url: url,
+//         thumbnail: result.metadata?.thumbnail || 'https://source.unsplash.com/random/300x200/?nature',
+//         platform: platform,
+//         type: downloadType,
+//         quality: quality,
+//         size: result.metadata?.fileSize || '24.5 MB',
+//         createdAt: new Date().toISOString(),
+//         filePath: result.filePath || result.fileUri,
+//         filename: result.metadata?.title || 'downloaded_file'
+//       };
+      
+//       setDownloadHistory([newDownload, ...downloadHistory]);
+      
+//       Alert.alert(
+//         "Download Complete", 
+//         `Successfully downloaded "${result.metadata?.title || 'content'}" and saved to ${result.savedLocation}!`,
+//         [{ text: "OK" }]
+//       );
+//     } else {
+//       Alert.alert("Download Failed", result.error || "Download could not be completed.");
+//     }
+    
+//   } catch (error) {
+//     console.error('Download error:', error);
+//     setLoading(false);
+//     setProgress(0);
+//     Alert.alert("Download Failed", "There was an error downloading your content.");
+//   }
+// };
+  
+// Updated handleDownload function for your component
+// const handleDownload = async () => {
+//   if (!url.trim()) return;
+  
+//   setLoading(true);
+//   setProgress(0);
+  
+//   try {
+//     // Import the DownloadService
+//     const DownloadService = (await import('../services/DownloadService')).default;
+    
+//     // Request permissions upfront before starting download
+//     console.log('🔐 Ensuring media library permissions...');
+//     await DownloadService.ensurePermissions();
+    
+//     const downloadOptions = {
+//       url: url,
+//       type: downloadType as 'video' | 'audio' | 'image',
+//       quality: quality,
+//       platform: platform,
+//       useAutoFormat: true,
+//       saveLocation: 'media_library' as const
+//     };
+    
+//     console.log('Starting download with options:', downloadOptions);
+    
+//     // Use DownloadService for download (permissions already handled)
+//     const result = await DownloadService.downloadContent(
+//       downloadOptions,
+//       (progressData) => {
+//         setProgress(progressData.progress);
+//       }
+//     );
+    
+//     setLoading(false);
+    
+//     if (result.success) {
+//       const newDownload = {
+//         id: Date.now().toString(),
+//         title: result.metadata?.title || `Downloaded ${downloadType} from ${platform}`,
+//         url: url,
+//         thumbnail: result.metadata?.thumbnail || 'https://source.unsplash.com/random/300x200/?nature',
+//         platform: platform,
+//         type: downloadType,
+//         quality: quality,
+//         size: result.metadata?.fileSize || '24.5 MB',
+//         createdAt: new Date().toISOString(),
+//         filePath: result.filePath || result.fileUri,
+//         filename: result.metadata?.title || 'downloaded_file'
+//       };
+      
+//       setDownloadHistory([newDownload, ...downloadHistory]);
+      
+//       Alert.alert(
+//         "Download Complete", 
+//         `Successfully downloaded "${result.metadata?.title || 'content'}" and saved to ${result.savedLocation}!`,
+//         [{ text: "OK" }]
+//       );
+//     } else {
+//       Alert.alert("Download Failed", result.error || "Download could not be completed.");
+//     }
+    
+//   } catch (error) {
+//     console.error('Download error:', error);
+//     setLoading(false);
+//     setProgress(0);
+//     Alert.alert("Download Failed", "There was an error downloading your content.");
+//   }
+// };
+
+const handleDownload = async () => {
+  if (!url.trim()) return;
+  
+  setLoading(true);
+  setProgress(0);
+  
+  try {
+    // Import the DownloadService
+    const DownloadService = (await import('../services/DownloadService')).default;
+    
+    // DO NOT request permissions here - they should already be granted from startup
+    // Remove this line: await DownloadService.ensurePermissions();
+    
+    const downloadOptions = {
+      url: url,
+      type: downloadType as 'video' | 'audio' | 'image',
+      quality: quality,
+      platform: platform,
+      useAutoFormat: true,
+      saveLocation: 'media_library' as const
+    };
+    
+    console.log('Starting download with options:', downloadOptions);
+    
+    // Use DownloadService for download (permissions already handled at startup)
+    const result = await DownloadService.downloadContent(
+      downloadOptions,
+      (progressData) => {
+        setProgress(progressData.progress);
+      }
+    );
+    
+    setLoading(false);
+    
+    if (result.success) {
+      const newDownload = {
+        id: Date.now().toString(),
+        title: result.metadata?.title || `Downloaded ${downloadType} from ${platform}`,
+        url: url,
+        thumbnail: result.metadata?.thumbnail || 'https://source.unsplash.com/random/300x200/?nature',
+        platform: platform,
+        type: downloadType,
+        quality: quality,
+        size: result.metadata?.fileSize || '24.5 MB',
+        createdAt: new Date().toISOString(),
+        filePath: result.filePath || result.fileUri,
+        filename: result.metadata?.title || 'downloaded_file'
+      };
+      
+      setDownloadHistory([newDownload, ...downloadHistory]);
+      
+      Alert.alert(
+        "Download Complete", 
+        `Successfully downloaded "${result.metadata?.title || 'content'}" and saved to ${result.savedLocation}!`,
+        [{ text: "OK" }]
+      );
+    } else {
+      Alert.alert("Download Failed", result.error || "Download could not be completed.");
+    }
+  } catch (error) {
+    // Error handling remains the same...
+     console.error('Download error:', error);
+    setLoading(false);
+    setProgress(0);
+    Alert.alert("Download Failed", "There was an error downloading your content.");
+  }
+};
+
+
+const handleAnalyze = async () => {
     if (!url.trim()) return;
     
     setLoading(true);
     setProgress(0);
     
-    // Simulate analyzing
-    const progressInterval = setInterval(() => {
-      setProgress((prevProgress) => {
-        const newProgress = prevProgress + (Math.random() * 15);
-        if (newProgress >= 100) {
-          clearInterval(progressInterval);
-          setTimeout(() => {
-            setLoading(false);
-            setShowPreview(true);
-            setPreviewData({
-              title: 'Amazing Social Media Content',
-              author: 'Content Creator',
-              duration: '3:45',
-              availableQualities: ['1080p', '720p', '480p', '360p'],
-              thumbnail: 'https://source.unsplash.com/random/800x450/?video',
-              description: 'This is a great video with lots of interesting content.',
-              views: '1.2M',
-              likes: '45K',
-              publishDate: '2023-05-15',
-            });
-          }, 800);
-          return 100;
-        }
-        return newProgress;
-      });
-    }, 150);
+    try {
+      // Import the downloadAPI from services
+      const { downloadAPI } = await import('../services/api');
+      
+      // Set initial progress to show user something is happening
+      setProgress(10);
+      
+      // Make actual API call to get media info
+      console.log('Analyzing media URL:', url);
+      const mediaInfo = await downloadAPI.getMediaInfo(url);
+      console.log('Media info received:', mediaInfo);
+      
+      // Set progress to indicate completion
+      setProgress(100);
+      
+      // Process and display the actual media info
+      setTimeout(() => {
+        setLoading(false);
+        setShowPreview(true);
+        
+        // Use actual data from API response or fallback to defaults
+        setPreviewData({
+          title: mediaInfo?.title || 'Media Content',
+          author: mediaInfo?.uploader || mediaInfo?.channel || 'Content Creator',
+          duration: mediaInfo?.duration 
+            ? `${Math.floor(mediaInfo.duration / 60)}:${(mediaInfo.duration % 60).toString().padStart(2, '0')}` 
+            : 'Unknown',
+          availableQualities: mediaInfo?.formats?.map(f => f.quality || f.format_note)
+            ?.filter(Boolean)
+            ?.filter((v, i, a) => a.indexOf(v) === i) || ['1080p', '720p', '480p', '360p'],
+          thumbnail: mediaInfo?.thumbnail || 'https://source.unsplash.com/random/800x450/?video',
+          description: mediaInfo?.description || 'No description available.',
+          views: mediaInfo?.view_count ? `${formatCount(mediaInfo.view_count)}` : 'Unknown',
+          likes: mediaInfo?.like_count ? `${formatCount(mediaInfo.like_count)}` : 'Unknown',
+          publishDate: mediaInfo?.upload_date 
+            ? formatDate(mediaInfo.upload_date) 
+            : 'Unknown',
+        });
+      }, 500);
+      
+    } catch (error) {
+      console.error('Error analyzing URL:', error);
+      setLoading(false);
+      setProgress(0);
+      Alert.alert(
+        "Analysis Failed", 
+        "There was an error analyzing this URL. Please check the URL and try again.",
+        [{ text: "OK" }]
+      );
+    }
+  };
+  
+  // Helper function to format large numbers
+  const formatCount = (count: number): string => {
+    if (count >= 1000000) {
+      return `${(count / 1000000).toFixed(1)}M`;
+    } else if (count >= 1000) {
+      return `${(count / 1000).toFixed(1)}K`;
+    }
+    return count.toString();
+  };
+  
+  // Helper function to format dates from YYYYMMDD format
+  const formatDate = (dateStr: string): string => {
+    if (dateStr.length === 8) {
+      const year = dateStr.substring(0, 4);
+      const month = dateStr.substring(4, 6);
+      const day = dateStr.substring(6, 8);
+      return new Date(`${year}-${month}-${day}`).toLocaleDateString();
+    }
+    return dateStr;
   };
 
   const handleDeleteDownload = (id: string) => {

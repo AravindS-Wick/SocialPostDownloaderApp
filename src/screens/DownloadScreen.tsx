@@ -10,9 +10,13 @@ import { setAvailableResolutions, setDownloadType, setIsDownloading, setProgress
 import { addDownloadToHistory } from '../store/slices/historySlice';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import DownloadService, { DownloadOptions, DownloadProgress } from '../services/DownloadService';
-import { detectPlatformFromUrl } from '../services/api';
+import { detectPlatformFromUrl, testApiEndpoints, downloadAPI, discoverApiEndpoints, updateDiscoveredEndpoints } from '../services/api';
 import { v4 as uuidv4 } from 'uuid';
 import { logDownloadAttempt, logDownloadComplete } from '../services/logger';
+import { checkAlbumContents } from '../services/storage';
+import axios from 'axios';
+// import { API_BASE_URL } from '../../SocialMediaDownloader 5/src/utils/constants';
+import { API_BASE_URL } from '../utils/constants';
 
 // Define types for navigation and route
 type DownloadScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Download'>;
@@ -97,34 +101,293 @@ const DownloadScreen: React.FC<DownloadScreenProps> = ({ navigation, route }) =>
     }
   };
   
+  // Test API endpoints
+  const handleTestApiEndpoints = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('Testing API endpoints from DownloadScreen...');
+      
+      const results = await testApiEndpoints();
+      
+      // Show results in an alert
+      Alert.alert(
+        'API Endpoint Test Results',
+        `Health: ${results.health ? '✅' : '❌'}\n` +
+        `Media Info: ${results.mediaInfo ? '✅' : '❌'}\n` +
+        `Download: ${results.downloadMedia ? '✅' : '❌'}\n` +
+        `Status: ${results.downloadStatus ? '✅' : '❌'}`,
+        [{ text: 'OK' }]
+      );
+    } catch (err) {
+      console.error('Error testing API endpoints:', err);
+      setError('Failed to test API endpoints. Check console for details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Check album contents
+  const handleCheckAlbumContents = async () => {
+    try {
+      setLoading(true);
+      await checkAlbumContents();
+    } catch (err) {
+      console.error('Error checking album contents:', err);
+      setError('Failed to check album contents. See console for details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Discover API endpoints
+  const handleDiscoverApiEndpoints = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('Discovering API endpoints...');
+      
+      await discoverApiEndpoints();
+      
+      Alert.alert('API Discovery', 'API endpoint discovery completed. Check console for details.');
+    } catch (err) {
+      console.error('Error discovering API endpoints:', err);
+      setError('Failed to discover API endpoints. Check console for details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Test direct API call
+  const handleDirectApiTest = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('=== DIRECT API TEST ===');
+      
+      if (!url) {
+        Alert.alert('Error', 'Please enter a URL first');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('Testing direct API call with URL:', url);
+      
+      // Test media info API
+      console.log('Testing media info API directly...');
+      
+      // Try different possible endpoint paths
+      const possibleMediaInfoPaths = [
+        // '/api/media/info',
+        '/api/download/info',
+        '/api/info',
+        '/api/youtube/info',
+        '/youtube/info',
+        '/download/info'
+      ];
+      
+      let mediaInfoSuccess = false;
+      
+      for (const path of possibleMediaInfoPaths) {
+        try {
+          console.log(`Trying media info endpoint: ${path}`);
+          const response = await axios.get(`${path.startsWith('/api') ? API_BASE_URL.replace('/api', '') : API_BASE_URL.replace('/api', '/api')}${path}`, {
+            params: { url }
+          });
+          console.log(`Media info endpoint ${path} response:`, response.status);
+          console.log(`Media info endpoint ${path} data:`, JSON.stringify(response.data));
+          mediaInfoSuccess = true;
+          
+          // Update the discovered endpoint
+          updateDiscoveredEndpoints({ mediaInfo: path });
+          
+          Alert.alert('Media Info API Test', `Success with endpoint: ${path}! Check console for details.`);
+          break;
+        } catch (pathError: any) {
+          console.log(`Media info endpoint ${path} failed:`, pathError?.message || 'Unknown error');
+        }
+      }
+      
+      if (!mediaInfoSuccess) {
+        try {
+          const mediaInfoResult = await downloadAPI.getMediaInfo(url);
+          console.log('Media info API direct test result:', JSON.stringify(mediaInfoResult));
+          Alert.alert('Media Info API Test', 'Success with original endpoint! Check console for details.');
+        } catch (mediaInfoError: any) {
+          console.error('All media info API endpoints failed:', mediaInfoError?.message || 'Unknown error');
+          Alert.alert('Media Info API Test', 'Failed with all endpoints! Check console for details.');
+        }
+      }
+      
+      // Test download API
+      console.log('Testing download API directly...');
+      
+      const downloadOptions = {
+        url,
+        format: 'best',  // Use 'best' instead of specific format
+        quality: 'best', // Use 'best' instead of specific quality
+        type: 'video' as 'video' | 'audio' | 'image',
+        useAutoFormat: true // Tell the API to use the best available format
+      };
+      
+      // Try different possible endpoint paths for download
+      const possibleDownloadPaths = [
+        '/api/media/download',
+        '/api/download',
+        '/api/youtube/download',
+        '/youtube/download',
+        '/download'
+      ];
+      
+      let downloadSuccess = false;
+      let downloadId = '';
+      
+      for (const path of possibleDownloadPaths) {
+        try {
+          console.log(`Trying download endpoint: ${path}`);
+          const response = await axios.post(`${path.startsWith('/api') ? API_BASE_URL.replace('/api', '') : API_BASE_URL.replace('/api', '/api')}${path}`, downloadOptions);
+          console.log(`Download endpoint ${path} response:`, response.status);
+          console.log(`Download endpoint ${path} data:`, JSON.stringify(response.data));
+          downloadSuccess = true;
+          
+          if (response.data && response.data.downloadId) {
+            downloadId = response.data.downloadId;
+          }
+          
+          // Update the discovered endpoint
+          updateDiscoveredEndpoints({ download: path });
+          
+          Alert.alert('Download API Test', `Success with endpoint: ${path}! Check console for details.`);
+          break;
+        } catch (pathError: any) {
+          console.log(`Download endpoint ${path} failed:`, pathError?.message || 'Unknown error');
+        }
+      }
+      
+      if (!downloadSuccess) {
+        try {
+          const downloadResult = await downloadAPI.downloadMedia(downloadOptions);
+          console.log('Download API direct test result:', JSON.stringify(downloadResult));
+          Alert.alert('Download API Test', 'Success with original endpoint! Check console for details.');
+          
+          if (downloadResult && downloadResult.downloadId) {
+            downloadId = downloadResult.downloadId;
+          }
+        } catch (downloadError: any) {
+          console.error('All download API endpoints failed:', downloadError?.message || 'Unknown error');
+          Alert.alert('Download API Test', 'Failed with all endpoints! Check console for details.');
+        }
+      }
+      
+      // Test status API if we got a download ID
+      if (downloadId) {
+        console.log('Testing status API directly with download ID:', downloadId);
+        
+        // Try different possible endpoint paths for status
+        const possibleStatusPaths = [
+          `/api/media/status/${downloadId}`,
+          `/api/download/status/${downloadId}`,
+          `/api/status/${downloadId}`,
+          `/download/status/${downloadId}`,
+          `/status/${downloadId}`
+        ];
+        
+        let statusSuccess = false;
+        
+        for (const path of possibleStatusPaths) {
+          try {
+            console.log(`Trying status endpoint: ${path}`);
+            const response = await axios.get(`${path.startsWith('/api') ? API_BASE_URL.replace('/api', '') : API_BASE_URL.replace('/api', '/api')}${path}`);
+            console.log(`Status endpoint ${path} response:`, response.status);
+            console.log(`Status endpoint ${path} data:`, JSON.stringify(response.data));
+            statusSuccess = true;
+            
+            // Update the discovered endpoint
+            // Extract the base path without the ID
+            const basePath = path.substring(0, path.lastIndexOf('/') + 1);
+            updateDiscoveredEndpoints({ status: basePath });
+            
+            Alert.alert('Status API Test', `Success with endpoint: ${path}! Check console for details.`);
+            break;
+          } catch (pathError: any) {
+            console.log(`Status endpoint ${path} failed:`, pathError?.message || 'Unknown error');
+          }
+        }
+        
+        if (!statusSuccess) {
+          try {
+            const statusResult = await downloadAPI.getDownloadStatus(downloadId);
+            console.log('Status API direct test result:', JSON.stringify(statusResult));
+            Alert.alert('Status API Test', 'Success with original endpoint! Check console for details.');
+          } catch (statusError: any) {
+            console.error('All status API endpoints failed:', statusError?.message || 'Unknown error');
+            Alert.alert('Status API Test', 'Failed with all endpoints! Check console for details.');
+          }
+        }
+      } else {
+        console.log('No download ID received, skipping status API test');
+        Alert.alert('Status API Test', 'Skipped - No download ID received');
+      }
+    } catch (err) {
+      console.error('Error in direct API test:', err);
+      setError('Failed to test API directly. Check console for details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Handle download start
   const handleDownload = async () => {
     if (!url || isDownloading) return;
+    
+    console.log('=== DOWNLOAD BUTTON CLICKED ===');
+    console.log('URL value:', url);
+    console.log('isDownloading value:', isDownloading);
     
     try {
       // Set downloading state
       dispatch(setIsDownloading(true));
       setError(null);
       
+      console.log('=== DOWNLOAD INITIATED FROM UI ===');
+      console.log('URL:', url);
+      console.log('Platform:', platform);
+      console.log('Type:', selectedType);
+      console.log('Quality:', selectedQuality);
+      
       // Create download options
       const downloadOptions: DownloadOptions = {
         url,
         platform,
         type: selectedType,
-        quality: selectedQuality,
+        quality: selectedQuality || 'best',
+        format: 'best', // Use best format
         title: mediaInfo?.title || 'Downloaded Content',
+        useAutoFormat: true, // Enable auto format selection
       };
       
       // Start download and track progress
-      const result = await DownloadService.downloadContent(
-        downloadOptions,
-        (downloadProgress: DownloadProgress) => {
-          dispatch(setProgress(downloadProgress.progress));
-        }
-      );
+      console.log('Calling DownloadService.downloadContent with options:', JSON.stringify(downloadOptions));
+      
+      let result;
+      try {
+        result = await DownloadService.downloadContent(
+          downloadOptions,
+          (downloadProgress: DownloadProgress) => {
+            dispatch(setProgress(downloadProgress.progress));
+            console.log(`Progress update in UI: ${downloadProgress.progress.toFixed(1)}%`);
+          }
+        );
+        console.log('Download result received:', JSON.stringify(result));
+      } catch (downloadError: any) {
+        console.error('=== ERROR IN DOWNLOAD SERVICE CALL ===');
+        console.error('Error message:', downloadError?.message || 'Unknown error');
+        console.error('Error details:', JSON.stringify(downloadError));
+        throw downloadError; // Re-throw to be caught by the outer try-catch
+      }
       
       // Handle download result
-      if (result.success && result.metadata) {
+      if (result && result.success && result.metadata) {
         // Add to history
         const historyItem = {
           id: uuidv4(),
@@ -211,6 +474,34 @@ const DownloadScreen: React.FC<DownloadScreenProps> = ({ navigation, route }) =>
             style={styles.backButton}
           >
             Go Back
+          </Button>
+          <Button 
+            mode="outlined" 
+            onPress={handleTestApiEndpoints}
+            style={[styles.backButton, { marginTop: 10 }]}
+          >
+            Test API Endpoints
+          </Button>
+          <Button 
+            mode="outlined" 
+            onPress={handleDirectApiTest}
+            style={[styles.backButton, { marginTop: 10 }]}
+          >
+            Direct API Test
+          </Button>
+          <Button 
+            mode="outlined" 
+            onPress={handleDiscoverApiEndpoints}
+            style={[styles.backButton, { marginTop: 10 }]}
+          >
+            Discover API Endpoints
+          </Button>
+          <Button 
+            mode="outlined" 
+            onPress={handleCheckAlbumContents}
+            style={[styles.backButton, { marginTop: 10 }]}
+          >
+            Check Downloaded Files
           </Button>
         </View>
       ) : mediaInfo ? (
@@ -368,14 +659,48 @@ const DownloadScreen: React.FC<DownloadScreenProps> = ({ navigation, route }) =>
                 <Text style={styles.downloadingText}>Downloading...</Text>
               </View>
             ) : (
-              <Button 
-                mode="contained" 
-                onPress={handleDownload}
-                style={styles.downloadButton}
-                icon="download"
-              >
-                Download {selectedType === 'video' ? 'Video' : 'Audio'}
-              </Button>
+              <View>
+                <Button 
+                  mode="contained" 
+                  onPress={handleDownload}
+                  style={styles.downloadButton}
+                  icon="download"
+                >
+                  Download {selectedType === 'video' ? 'Video' : 'Audio'}
+                </Button>
+                <Button 
+                  mode="outlined" 
+                  onPress={handleTestApiEndpoints}
+                  style={[styles.downloadButton, { marginTop: 10 }]}
+                  icon="api"
+                >
+                  Test API Connection
+                </Button>
+                <Button 
+                  mode="outlined" 
+                  onPress={handleDirectApiTest}
+                  style={[styles.downloadButton, { marginTop: 10 }]}
+                  icon="test-tube"
+                >
+                  Direct API Test
+                </Button>
+                <Button 
+                  mode="outlined" 
+                  onPress={handleDiscoverApiEndpoints}
+                  style={[styles.downloadButton, { marginTop: 10 }]}
+                  icon="magnify"
+                >
+                  Discover API Endpoints
+                </Button>
+                <Button 
+                  mode="outlined" 
+                  onPress={handleCheckAlbumContents}
+                  style={[styles.downloadButton, { marginTop: 10 }]}
+                  icon="folder"
+                >
+                  Check Downloaded Files
+                </Button>
+              </View>
             )}
           </View>
         </View>
